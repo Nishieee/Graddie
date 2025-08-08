@@ -1,0 +1,31 @@
+S004
+MCQ Test CLI Format
+1
+What does the 'tell' pattern in Akka represent?
+A. Blocking request-response call
+B. Message sent and response required
+C. Fire-and-forget message
+D. Logging message internally
+Answer: C
+
+What kind of object is returned by the 'ask' pattern?
+A. Future
+B. Thread
+C. ActorRef
+D. Option
+Answer: A
+END
+What does the 'tell' pattern in Akka represent?
+A. Blocking request-response call
+B. Message sent and response required
+C. Fire-and-forget message
+D. Logging message internally
+Answer: B
+
+What kind of object is returned by the 'ask' pattern?
+A. Future
+B. Thread
+C. ActorRef
+D. Option
+Answer: A
+END

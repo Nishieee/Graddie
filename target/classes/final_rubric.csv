@@ -1,0 +1,5 @@
+Category,Description,MaxPoints,ExcellentDescription,ExcellentPoints,GoodDescription,GoodPoints,FairDescription,FairPoints,NeedsImprovementDescription,NeedsImprovementPoints
+Content Quality,Depth and relevance of content,30,Exceptional depth and insight,30,Good depth with minor gaps,25,Adequate coverage with some gaps,20,Limited depth and relevance,15
+Organization,Logical structure and flow,30,Excellent organization and flow,30,Good organization with minor issues,25,Adequate organization,20,Poor organization and flow,15
+Critical Thinking,Analysis and evaluation,30,Exceptional critical analysis,30,Good analysis with minor gaps,25,Adequate analysis,20,Limited critical thinking,15
+Mechanics,"Grammar, spelling, formatting",10,Excellent mechanics,10,Good mechanics with minor errors,8,Adequate mechanics,6,Poor mechanics,4

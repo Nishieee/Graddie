@@ -1,0 +1,15 @@
+S005
+Short Answer CLI Format
+2
+Question:
+What does the 'forward' method in Akka do?
+
+Answer:
+It preserves the original sender when passing a message to another actor.
+END
+Question:
+What does the 'forward' method in Akka do?
+
+Answer:
+It sends a message but keeps the original sender.
+END

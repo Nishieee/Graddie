@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Graddie - AI-Powered Grading System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .form-container {
+            padding: 40px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        input[type="text"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        input[type="text"]:focus,
+        select:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #4CAF50;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 120px;
+            font-family: inherit;
+        }
+
+        .submit-btn {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+            padding: 15px 40px;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+            width: 100%;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(76, 175, 80, 0.3);
+        }
+
+        .submit-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .result {
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .result.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+
+        .result.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4CAF50;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .example-text {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .question-type-help {
+            background: #f8f9fa;
+            border-left: 4px solid #4CAF50;
+            padding: 15px;
+            margin-top: 10px;
+            border-radius: 4px;
+        }
+
+        .score-display {
+            font-size: 2em;
+            font-weight: bold;
+            color: #4CAF50;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .feedback-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+
+        .feedback-section h3 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎓 Graddie</h1>
+            <p>AI-Powered Academic Grading System</p>
+        </div>
+
+        <div class="form-container">
+            <form id="gradingForm">
+                <div class="form-group">
+                    <label for="studentId">Student ID</label>
+                    <input type="text" id="studentId" name="studentId" required
+                        placeholder="Enter student ID (e.g., STU001)">
+                </div>
+
+                <div class="form-group">
+                    <label for="assignment">Assignment Name</label>
+                    <input type="text" id="assignment" name="assignment" required
+                        placeholder="Enter assignment name (e.g., Akka Fundamentals Quiz)">
+                </div>
+
+                <div class="form-group">
+                    <label for="questionType">Question Type</label>
+                    <select id="questionType" name="questionType" required>
+                        <option value="">Select question type...</option>
+                        <option value="MCQ">Multiple Choice Questions (MCQ)</option>
+                        <option value="SHORT_ANSWER">Short Answer</option>
+                        <option value="ESSAY">Essay</option>
+                    </select>
+                    <div class="question-type-help" id="typeHelp" style="display: none;">
+                        <div id="helpText"></div>
+                    </div>
+                </div>
+
+                <div class="form-group" id="correctAnswersGroup" style="display: none;">
+                    <label for="correctAnswers">Correct Answers</label>
+                    <textarea id="correctAnswers" name="correctAnswers"
+                        placeholder="Enter correct answers..."></textarea>
+                    <div class="example-text" id="correctAnswersExample"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="submission">Student Submission</label>
+                    <textarea id="submission" name="submission" required
+                        placeholder="Paste student's submission here..."></textarea>
+                    <div class="example-text" id="submissionExample"></div>
+                </div>
+
+                <button type="submit" class="submit-btn" id="submitBtn">🚀 Grade Submission</button>
+            </form>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>AI is grading the submission... This may take a few moments.</p>
+            </div>
+
+            <div class="result" id="result">
+                <div id="resultContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Question type help and examples
+        const questionTypeHelp = {
+            'MCQ': {
+                help: '<strong>Multiple Choice Questions:</strong> Enter each question with options A, B, C, D on separate lines, followed by the correct answer.',
+                correctAnswersExample: 'Question 1: What is Akka?<br>A. Database<br>B. Actor Framework<br>C. Web Server<br>D. Compiler<br>Answer: B<br><br>Question 2: What does "tell" do?<br>A. Blocks<br>B. Fire-and-forget<br>C. Returns value<br>D. Crashes<br>Answer: B',
+                submissionExample: 'Student answers the questions in the same format with their selected answers.'
+            },
+            'SHORT_ANSWER': {
+                help: '<strong>Short Answer:</strong> Brief conceptual questions requiring 1-3 sentence answers.',
+                correctAnswersExample: 'Not required for Short Answer questions.',
+                submissionExample: 'Example: "Explain the tell pattern in Akka."<br>Student answer: "The tell pattern sends a message to an actor without waiting for a response..."'
+            },
+            'ESSAY': {
+                help: '<strong>Essay:</strong> Longer form answers evaluated on multiple criteria including content, organization, and mechanics.',
+                correctAnswersExample: 'Not required for Essay questions.',
+                submissionExample: 'Student provides a detailed essay response to the given prompt.'
+            }
+        };
+
+        document.getElementById('questionType').addEventListener('change', function () {
+            const selectedType = this.value;
+            const helpDiv = document.getElementById('typeHelp');
+            const helpText = document.getElementById('helpText');
+            const correctAnswersGroup = document.getElementById('correctAnswersGroup');
+            const correctAnswersExample = document.getElementById('correctAnswersExample');
+            const submissionExample = document.getElementById('submissionExample');
+
+            if (selectedType && questionTypeHelp[selectedType]) {
+                const help = questionTypeHelp[selectedType];
+                helpText.innerHTML = help.help;
+                helpDiv.style.display = 'block';
+                correctAnswersExample.innerHTML = help.correctAnswersExample;
+                submissionExample.innerHTML = help.submissionExample;
+
+                // Show/hide correct answers field
+                if (selectedType === 'MCQ') {
+                    correctAnswersGroup.style.display = 'block';
+                    document.getElementById('correctAnswers').required = true;
+                } else {
+                    correctAnswersGroup.style.display = 'none';
+                    document.getElementById('correctAnswers').required = false;
+                }
+            } else {
+                helpDiv.style.display = 'none';
+                correctAnswersGroup.style.display = 'none';
+            }
+        });
+
+        document.getElementById('gradingForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            const submitBtn = document.getElementById('submitBtn');
+            const loading = document.getElementById('loading');
+            const result = document.getElementById('result');
+
+            // Show loading
+            submitBtn.disabled = true;
+            loading.style.display = 'block';
+            result.style.display = 'none';
+
+            // Collect form data
+            const formData = new FormData(this);
+            const data = {
+                studentId: formData.get('studentId'),
+                assignment: formData.get('assignment'),
+                questionType: formData.get('questionType'),
+                correctAnswers: formData.get('correctAnswers') || null,
+                submission: formData.get('submission')
+            };
+
+            try {
+                const response = await fetch('/grade', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const gradingResult = await response.json();
+
+                if (response.ok) {
+                    displayResult(gradingResult, true);
+                } else {
+                    displayResult({ error: gradingResult.error || 'Grading failed' }, false);
+                }
+            } catch (error) {
+                displayResult({ error: 'Network error: ' + error.message }, false);
+            } finally {
+                submitBtn.disabled = false;
+                loading.style.display = 'none';
+            }
+        });
+
+        function displayResult(data, success) {
+            const result = document.getElementById('result');
+            const resultContent = document.getElementById('resultContent');
+
+            if (success) {
+                result.className = 'result success';
+                let html = `
+                    <div class="score-display">${data.totalScore}/${data.maxScore} (${data.grade})</div>
+                    <p><strong>Student:</strong> ${data.studentId}</p>
+                    <p><strong>Assignment:</strong> ${data.assignment}</p>
+                    <p><strong>Question Type:</strong> ${data.questionType}</p>
+                    <p><strong>Percentage:</strong> ${data.percentage}%</p>
+                `;
+
+                if (data.overallFeedback) {
+                    html += `
+                        <div class="feedback-section">
+                            <h3>📝 Overall Feedback</h3>
+                            <p>${data.overallFeedback}</p>
+                        </div>
+                    `;
+                }
+
+                if (data.mcqFeedback) {
+                    html += `
+                        <div class="feedback-section">
+                            <h3>📊 MCQ Breakdown</h3>
+                            <pre style="white-space: pre-wrap; font-family: inherit;">${data.mcqFeedback}</pre>
+                        </div>
+                    `;
+                }
+
+                html += `<p style="margin-top: 20px; color: #666; font-size: 0.9em;">Graded at: ${new Date(data.gradedAt).toLocaleString()}</p>`;
+                resultContent.innerHTML = html;
+            } else {
+                result.className = 'result error';
+                resultContent.innerHTML = `<strong>Error:</strong> ${data.error}`;
+            }
+
+            result.style.display = 'block';
+        }
+    </script>
+</body>
+
+</html>
