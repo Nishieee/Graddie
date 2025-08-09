@@ -273,7 +273,14 @@ public class WebServer extends AllDirectives {
                             
                             <div class="form-group">
                                 <label for="assignment">Assignment Name:</label>
-                                <input type="text" id="assignment" name="assignment" required>
+                                <select id="assignment" name="assignment" required>
+                                    <option value="">Select an assignment</option>
+                                    <option value="Assignment 1">Assignment 1</option>
+                                    <option value="Assignment 2">Assignment 2</option>
+                                    <option value="Assignment 3">Assignment 3</option>
+                                    <option value="Assignment 4">Assignment 4</option>
+                                    <option value="Assignment 5">Assignment 5</option>
+                                </select>
                             </div>
                             
                             <div class="form-group">
@@ -339,6 +346,13 @@ public class WebServer extends AllDirectives {
                                     No detailed feedback available.
                                 </div>
                             </div>
+                            
+                            <div style="text-align: center; margin-top: 20px; padding-top: 15px; border-top: 1px solid #000000;">
+                                <button style="background: #4CAF50; color: white; padding: 12px 25px; border: none; border-radius: 5px; font-size: 16px; font-weight: bold; cursor: pointer;" 
+                                        onclick="downloadResults()">
+                                    📄 Download Grading Report
+                                </button>
+                            </div>
                         </div>
                         
                         <div id="error" class="error" style="display: none;"></div>
@@ -382,6 +396,9 @@ public class WebServer extends AllDirectives {
                             
                             const data = await response.json();
                             
+                            // Store data for download functionality
+                            gradingData = data;
+                            
                             document.getElementById('resultStudent').textContent = data.studentId;
                             document.getElementById('resultAssignment').textContent = data.assignment;
                             document.getElementById('resultScore').textContent = data.totalScore + '/' + data.maxScore;
@@ -418,6 +435,71 @@ public class WebServer extends AllDirectives {
                             submitBtn.disabled = false;
                         }
                     });
+                    
+                    // Global variable for download functionality
+                    let gradingData = null;
+                    
+                    function downloadResults() {
+                        if (!gradingData) {
+                            alert('No grading results available to download.');
+                            return;
+                        }
+                        
+                        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                        const filename = `grading_report_${gradingData.studentId}_${timestamp}.txt`;
+                        
+                        // Get form data
+                        const formData = {
+                            studentId: document.getElementById('studentId').value,
+                            assignment: document.getElementById('assignment').value,
+                            submission: document.getElementById('submission').value
+                        };
+                        
+                        // Create report content
+                        let content = '';
+                        content += '================================\\n';
+                        content += '       GRADDIE GRADING REPORT\\n';
+                        content += '================================\\n\\n';
+                        content += `Student ID: ${gradingData.studentId}\\n`;
+                        content += `Assignment: ${gradingData.assignment}\\n`;
+                        content += `Grade: ${gradingData.grade}\\n`;
+                        content += `Score: ${gradingData.totalScore}/${gradingData.maxScore}\\n`;
+                        content += `Graded At: ${new Date().toLocaleString()}\\n\\n`;
+                        
+                        content += '================================\\n';
+                        content += '       STUDENT SUBMISSION\\n';
+                        content += '================================\\n\\n';
+                        content += formData.submission + '\\n\\n';
+                        
+                        if (gradingData.overallFeedback) {
+                            content += '================================\\n';
+                            content += '       OVERALL FEEDBACK\\n';
+                            content += '================================\\n\\n';
+                            content += gradingData.overallFeedback + '\\n\\n';
+                        }
+                        
+                        if (gradingData.mcqFeedback) {
+                            content += '================================\\n';
+                            content += '       MCQ BREAKDOWN\\n';
+                            content += '================================\\n\\n';
+                            content += gradingData.mcqFeedback + '\\n\\n';
+                        }
+                        
+                        content += '================================\\n';
+                        content += '   Generated by Graddie AI\\n';
+                        content += '================================\\n';
+                        
+                        // Download the file
+                        const blob = new Blob([content], { type: 'text/plain' });
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = filename;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        window.URL.revokeObjectURL(url);
+                    }
                 </script>
             </body>
             </html>

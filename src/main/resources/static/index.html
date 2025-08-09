@@ -187,6 +187,25 @@
             color: #333;
             margin-bottom: 10px;
         }
+
+        .download-btn {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+            margin-top: 20px;
+            display: inline-block;
+        }
+
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(76, 175, 80, 0.3);
+        }
     </style>
 </head>
 
@@ -207,8 +226,14 @@
 
                 <div class="form-group">
                     <label for="assignment">Assignment Name</label>
-                    <input type="text" id="assignment" name="assignment" required
-                        placeholder="Enter assignment name (e.g., Akka Fundamentals Quiz)">
+                    <select id="assignment" name="assignment" required>
+                        <option value="">Select an assignment</option>
+                        <option value="Assignment 1">Assignment 1</option>
+                        <option value="Assignment 2">Assignment 2</option>
+                        <option value="Assignment 3">Assignment 3</option>
+                        <option value="Assignment 4">Assignment 4</option>
+                        <option value="Assignment 5">Assignment 5</option>
+                    </select>
                 </div>
 
                 <div class="form-group">
@@ -335,6 +360,8 @@
                 const gradingResult = await response.json();
 
                 if (response.ok) {
+                    // Store data globally for download functionality
+                    window.currentGradingData = gradingResult;
                     displayResult(gradingResult, true);
                 } else {
                     displayResult({ error: gradingResult.error || 'Grading failed' }, false);
@@ -380,6 +407,16 @@
                 }
 
                 html += `<p style="margin-top: 20px; color: #666; font-size: 0.9em;">Graded at: ${new Date(data.gradedAt).toLocaleString()}</p>`;
+
+                // Add download button
+                html += `
+                    <div style="text-align: center; margin-top: 20px; padding-top: 15px; border-top: 1px solid #ddd;">
+                        <button class="download-btn" onclick="downloadResults()">
+                            📄 Download Grading Report
+                        </button>
+                    </div>
+                `;
+
                 resultContent.innerHTML = html;
             } else {
                 result.className = 'result error';
@@ -387,6 +424,72 @@
             }
 
             result.style.display = 'block';
+        }
+
+        // Download functionality
+        function downloadResults() {
+            if (!window.currentGradingData) {
+                alert('No grading results available to download.');
+                return;
+            }
+
+            const data = window.currentGradingData;
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            const filename = `grading_report_${data.studentId}_${timestamp}.txt`;
+
+            // Get original form data
+            const formData = {
+                studentId: document.getElementById('studentId').value,
+                assignment: document.getElementById('assignment').value,
+                questionType: document.getElementById('questionType').value,
+                submission: document.getElementById('submission').value
+            };
+
+            // Generate formatted text content
+            let content = '';
+            content += '================================\n';
+            content += '       GRADDIE GRADING REPORT\n';
+            content += '================================\n\n';
+            content += `Student ID: ${data.studentId}\n`;
+            content += `Assignment: ${data.assignment}\n`;
+            content += `Question Type: ${data.questionType}\n`;
+            content += `Grade: ${data.grade}\n`;
+            content += `Score: ${data.totalScore}/${data.maxScore} (${data.percentage}%)\n`;
+            content += `Graded At: ${new Date(data.gradedAt).toLocaleString()}\n\n`;
+
+            content += '================================\n';
+            content += '       STUDENT SUBMISSION\n';
+            content += '================================\n\n';
+            content += formData.submission + '\n\n';
+
+            if (data.overallFeedback && data.overallFeedback.trim() !== '') {
+                content += '================================\n';
+                content += '       OVERALL FEEDBACK\n';
+                content += '================================\n\n';
+                content += data.overallFeedback + '\n\n';
+            }
+
+            if (data.mcqFeedback && data.mcqFeedback.trim() !== '') {
+                content += '================================\n';
+                content += '       MCQ BREAKDOWN\n';
+                content += '================================\n\n';
+                content += data.mcqFeedback + '\n\n';
+            }
+
+            content += '================================\n';
+            content += '   Generated by Graddie AI\n';
+            content += '================================\n';
+
+            // Create and trigger download
+            const blob = new Blob([content], { type: 'text/plain' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
         }
     </script>
 </body>
