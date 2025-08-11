@@ -35,3 +35,7 @@
 🌐 Open your browser and go to: http://localhost:8080
 ⏹️  Press Ctrl+C to stop the server...
 🌐 Server online at http://localhost:8080/
+📄 Serving HTML interface...
+📝 Received grading request for student: 1001
+✅ Grading completed for student: 1001 with score: 95/100
+✅ Grading completed for 1001

@@ -1,7 +1,0 @@
-S006
-Essay CLI Format
-3
-Explain the advantages and challenges of using Akka Cluster for building distributed systems. Include a use case.
-
-Akka Cluster helps build distributed systems by allowing actors to communicate across different machines. It provides location transparency and fault tolerance. However, it can be complex to debug. A use case would be a multiplayer game where different sessions run on different servers.
-END

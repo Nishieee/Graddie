@@ -1,6 +1,5 @@
 com/agentic/actors/GraddieMessages$CategoryGradingFailed.class
 com/agentic/actors/GraddieMessages$RubricLoaded.class
-com/agentic/GraddieBatch$InputData.class
 com/agentic/models/GradingResult$CategoryScore.class
 com/agentic/actors/LoggerActor.class
 com/agentic/actors/LLMActor.class
@@ -21,14 +20,12 @@ com/agentic/utils/TextPreprocessor.class
 com/agentic/actors/GraddieMessages$RubricLoadFailed.class
 com/agentic/actors/GraddieMessages$FeedbackGenerated.class
 com/agentic/actors/GraddieMessages$QuestionType.class
-com/agentic/GraddieTest.class
 com/agentic/utils/OpenAIClient$GradingEvaluation.class
 com/agentic/actors/GraddieMessages$GradingFailed.class
 com/agentic/actors/GraddieMessages$CategoryGraded.class
 com/agentic/actors/SubmissionReceiverActor.class
 com/agentic/actors/GraddieMessages$GradeCategory.class
 com/agentic/actors/GraddieMessages$StartGrading.class
-com/agentic/GraddieBatch.class
 com/agentic/utils/CsvUtils.class
 com/agentic/actors/GradingWorkerActor.class
 com/agentic/actors/RubricReaderActor.class

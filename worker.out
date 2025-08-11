@@ -1,34 +1,34 @@
-16:06:13,875 |-INFO in ch.qos.logback.classic.LoggerContext[default] - This is logback-classic version 1.4.11
-16:06:13,876 |-INFO in ch.qos.logback.classic.util.ContextInitializer@4c6e276e - No custom configurators were discovered as a service.
-16:06:13,876 |-INFO in ch.qos.logback.classic.util.ContextInitializer@4c6e276e - Trying to configure with ch.qos.logback.classic.joran.SerializedModelConfigurator
-16:06:13,876 |-INFO in ch.qos.logback.classic.util.ContextInitializer@4c6e276e - Constructed configurator of type class ch.qos.logback.classic.joran.SerializedModelConfigurator
-16:06:13,893 |-INFO in ch.qos.logback.classic.LoggerContext[default] - Could NOT find resource [logback-test.scmo]
-16:06:13,893 |-INFO in ch.qos.logback.classic.LoggerContext[default] - Could NOT find resource [logback.scmo]
-16:06:13,899 |-INFO in ch.qos.logback.classic.util.ContextInitializer@4c6e276e - ch.qos.logback.classic.joran.SerializedModelConfigurator.configure() call lasted 17 milliseconds. ExecutionStatus=INVOKE_NEXT_IF_ANY
-16:06:13,899 |-INFO in ch.qos.logback.classic.util.ContextInitializer@4c6e276e - Trying to configure with ch.qos.logback.classic.util.DefaultJoranConfigurator
-16:06:13,899 |-INFO in ch.qos.logback.classic.util.ContextInitializer@4c6e276e - Constructed configurator of type class ch.qos.logback.classic.util.DefaultJoranConfigurator
-16:06:13,899 |-INFO in ch.qos.logback.classic.LoggerContext[default] - Could NOT find resource [logback-test.xml]
-16:06:13,901 |-INFO in ch.qos.logback.classic.LoggerContext[default] - Found resource [logback.xml] at [file:/Users/nishitamatlani/Documents/GitHub/Graddie_project/target/classes/logback.xml]
-16:06:13,961 |-WARN in ch.qos.logback.core.model.processor.AppenderModelHandler - Appender named [STDOUT] not referenced. Skipping further processing.
-16:06:13,961 |-INFO in ch.qos.logback.core.model.processor.AppenderModelHandler - Processing appender named [FILE]
-16:06:13,961 |-INFO in ch.qos.logback.core.model.processor.AppenderModelHandler - About to instantiate appender of type [ch.qos.logback.core.rolling.RollingFileAppender]
-16:06:13,981 |-INFO in c.q.l.core.rolling.TimeBasedRollingPolicy@1397616978 - No compression will be used
-16:06:13,981 |-INFO in c.q.l.core.rolling.TimeBasedRollingPolicy@1397616978 - Will use the pattern logs/agentic-grader.%d{yyyy-MM-dd}.log for the active file
-16:06:13,995 |-INFO in c.q.l.core.rolling.DefaultTimeBasedFileNamingAndTriggeringPolicy - The date pattern is 'yyyy-MM-dd' from file name pattern 'logs/agentic-grader.%d{yyyy-MM-dd}.log'.
-16:06:13,995 |-INFO in c.q.l.core.rolling.DefaultTimeBasedFileNamingAndTriggeringPolicy - Roll-over at midnight.
-16:06:13,999 |-INFO in c.q.l.core.rolling.DefaultTimeBasedFileNamingAndTriggeringPolicy - Setting initial period to 2025-08-08T00:46:44.088Z
-16:06:14,000 |-INFO in ch.qos.logback.core.model.processor.ImplicitModelHandler - Assuming default type [ch.qos.logback.classic.encoder.PatternLayoutEncoder] for [encoder] property
-16:06:14,009 |-INFO in ch.qos.logback.core.rolling.RollingFileAppender[FILE] - Active log file name: logs/agentic-grader.log
-16:06:14,009 |-INFO in ch.qos.logback.core.rolling.RollingFileAppender[FILE] - File property is set to [logs/agentic-grader.log]
-16:06:14,010 |-INFO in ch.qos.logback.classic.model.processor.LoggerModelHandler - Setting level of logger [com.agentic] to OFF
-16:06:14,010 |-INFO in ch.qos.logback.classic.model.processor.LoggerModelHandler - Setting level of logger [akka] to OFF
-16:06:14,010 |-INFO in ch.qos.logback.classic.model.processor.LoggerModelHandler - Setting level of logger [akka.cluster] to OFF
-16:06:14,010 |-INFO in ch.qos.logback.classic.model.processor.LoggerModelHandler - Setting level of logger [akka.remote] to OFF
-16:06:14,010 |-INFO in ch.qos.logback.classic.model.processor.RootLoggerModelHandler - Setting level of ROOT logger to OFF
-16:06:14,010 |-INFO in ch.qos.logback.core.model.processor.AppenderRefModelHandler - Attaching appender named [FILE] to Logger[ROOT]
-16:06:14,010 |-INFO in ch.qos.logback.core.model.processor.DefaultProcessor@52e677af - End of configuration.
-16:06:14,011 |-INFO in ch.qos.logback.classic.joran.JoranConfigurator@35083305 - Registering current configuration as safe fallback point
-16:06:14,011 |-INFO in ch.qos.logback.classic.util.ContextInitializer@4c6e276e - ch.qos.logback.classic.util.DefaultJoranConfigurator.configure() call lasted 112 milliseconds. ExecutionStatus=DO_NOT_INVOKE_NEXT_IF_ANY
+17:54:33,492 |-INFO in ch.qos.logback.classic.LoggerContext[default] - This is logback-classic version 1.4.11
+17:54:33,493 |-INFO in ch.qos.logback.classic.util.ContextInitializer@4c6e276e - No custom configurators were discovered as a service.
+17:54:33,493 |-INFO in ch.qos.logback.classic.util.ContextInitializer@4c6e276e - Trying to configure with ch.qos.logback.classic.joran.SerializedModelConfigurator
+17:54:33,494 |-INFO in ch.qos.logback.classic.util.ContextInitializer@4c6e276e - Constructed configurator of type class ch.qos.logback.classic.joran.SerializedModelConfigurator
+17:54:33,509 |-INFO in ch.qos.logback.classic.LoggerContext[default] - Could NOT find resource [logback-test.scmo]
+17:54:33,509 |-INFO in ch.qos.logback.classic.LoggerContext[default] - Could NOT find resource [logback.scmo]
+17:54:33,515 |-INFO in ch.qos.logback.classic.util.ContextInitializer@4c6e276e - ch.qos.logback.classic.joran.SerializedModelConfigurator.configure() call lasted 15 milliseconds. ExecutionStatus=INVOKE_NEXT_IF_ANY
+17:54:33,515 |-INFO in ch.qos.logback.classic.util.ContextInitializer@4c6e276e - Trying to configure with ch.qos.logback.classic.util.DefaultJoranConfigurator
+17:54:33,515 |-INFO in ch.qos.logback.classic.util.ContextInitializer@4c6e276e - Constructed configurator of type class ch.qos.logback.classic.util.DefaultJoranConfigurator
+17:54:33,516 |-INFO in ch.qos.logback.classic.LoggerContext[default] - Could NOT find resource [logback-test.xml]
+17:54:33,518 |-INFO in ch.qos.logback.classic.LoggerContext[default] - Found resource [logback.xml] at [file:/Users/nishitamatlani/Documents/GitHub/Graddie_project/target/classes/logback.xml]
+17:54:33,576 |-WARN in ch.qos.logback.core.model.processor.AppenderModelHandler - Appender named [STDOUT] not referenced. Skipping further processing.
+17:54:33,576 |-INFO in ch.qos.logback.core.model.processor.AppenderModelHandler - Processing appender named [FILE]
+17:54:33,576 |-INFO in ch.qos.logback.core.model.processor.AppenderModelHandler - About to instantiate appender of type [ch.qos.logback.core.rolling.RollingFileAppender]
+17:54:33,595 |-INFO in c.q.l.core.rolling.TimeBasedRollingPolicy@1397616978 - No compression will be used
+17:54:33,595 |-INFO in c.q.l.core.rolling.TimeBasedRollingPolicy@1397616978 - Will use the pattern logs/agentic-grader.%d{yyyy-MM-dd}.log for the active file
+17:54:33,607 |-INFO in c.q.l.core.rolling.DefaultTimeBasedFileNamingAndTriggeringPolicy - The date pattern is 'yyyy-MM-dd' from file name pattern 'logs/agentic-grader.%d{yyyy-MM-dd}.log'.
+17:54:33,607 |-INFO in c.q.l.core.rolling.DefaultTimeBasedFileNamingAndTriggeringPolicy - Roll-over at midnight.
+17:54:33,611 |-INFO in c.q.l.core.rolling.DefaultTimeBasedFileNamingAndTriggeringPolicy - Setting initial period to 2025-08-08T00:46:44.088Z
+17:54:33,611 |-INFO in ch.qos.logback.core.model.processor.ImplicitModelHandler - Assuming default type [ch.qos.logback.classic.encoder.PatternLayoutEncoder] for [encoder] property
+17:54:33,617 |-INFO in ch.qos.logback.core.rolling.RollingFileAppender[FILE] - Active log file name: logs/agentic-grader.log
+17:54:33,618 |-INFO in ch.qos.logback.core.rolling.RollingFileAppender[FILE] - File property is set to [logs/agentic-grader.log]
+17:54:33,618 |-INFO in ch.qos.logback.classic.model.processor.LoggerModelHandler - Setting level of logger [com.agentic] to OFF
+17:54:33,618 |-INFO in ch.qos.logback.classic.model.processor.LoggerModelHandler - Setting level of logger [akka] to OFF
+17:54:33,618 |-INFO in ch.qos.logback.classic.model.processor.LoggerModelHandler - Setting level of logger [akka.cluster] to OFF
+17:54:33,618 |-INFO in ch.qos.logback.classic.model.processor.LoggerModelHandler - Setting level of logger [akka.remote] to OFF
+17:54:33,618 |-INFO in ch.qos.logback.classic.model.processor.RootLoggerModelHandler - Setting level of ROOT logger to OFF
+17:54:33,618 |-INFO in ch.qos.logback.core.model.processor.AppenderRefModelHandler - Attaching appender named [FILE] to Logger[ROOT]
+17:54:33,619 |-INFO in ch.qos.logback.core.model.processor.DefaultProcessor@52e677af - End of configuration.
+17:54:33,619 |-INFO in ch.qos.logback.classic.joran.JoranConfigurator@35083305 - Registering current configuration as safe fallback point
+17:54:33,619 |-INFO in ch.qos.logback.classic.util.ContextInitializer@4c6e276e - ch.qos.logback.classic.util.DefaultJoranConfigurator.configure() call lasted 104 milliseconds. ExecutionStatus=DO_NOT_INVOKE_NEXT_IF_ANY
 
 ╔══════════════════════════════════════════════════════════════╗
 ║                    GRADDIE SYSTEM                          ║
