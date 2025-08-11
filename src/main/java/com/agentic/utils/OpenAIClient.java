@@ -23,14 +23,20 @@ public class OpenAIClient {
     private final ObjectMapper objectMapper;
     private final String apiKey;
     private final String baseUrl;
+    private final String model;
     
     public OpenAIClient(String apiKey) {
-        this(apiKey, "https://api.openai.com/v1");
+        this(apiKey, "https://api.openai.com/v1", "gpt-3.5-turbo");
     }
     
     public OpenAIClient(String apiKey, String baseUrl) {
+        this(apiKey, baseUrl, "gpt-3.5-turbo");
+    }
+
+    public OpenAIClient(String apiKey, String baseUrl, String model) {
         this.apiKey = apiKey;
         this.baseUrl = baseUrl;
+        this.model = model;
         this.objectMapper = new ObjectMapper();
         this.httpClient = new OkHttpClient.Builder()
                 .connectTimeout(30, TimeUnit.SECONDS)
@@ -98,9 +104,9 @@ public class OpenAIClient {
             String correctAnswers) {
         
         StringBuilder prompt = new StringBuilder();
-        prompt.append("You are a STRICT academic evaluator. You MUST follow the rubric exactly and NOT make up scores.\n");
-        prompt.append("CRITICAL: Only award points that are clearly earned based on the evidence in the student submission.\n");
-        prompt.append("DO NOT be generous or give benefit of the doubt. Be precise and evidence-based.\n\n");
+        prompt.append("You are a concise academic evaluator. Follow the rubric exactly; do not invent scores.\n");
+        prompt.append("Only award points clearly supported by evidence in the submission.\n");
+        prompt.append("Return brief feedback (max 3 sentences; ≤ 350 characters).\n\n");
         prompt.append("CATEGORY: ").append(rubricCategory).append("\n");
         prompt.append("DESCRIPTION: ").append(rubricDescription).append("\n");
         prompt.append("MAXIMUM POINTS: ").append(maxPoints).append("\n");
@@ -199,28 +205,15 @@ public class OpenAIClient {
             prompt.append("you MUST give a score of 0.6 or higher. Don't contradict yourself!\n\n");
             
         } else { // ESSAY
-            prompt.append("STRICT ESSAY EVALUATION RULES:\n");
-            prompt.append("1. ONLY use the rubric bands provided - do not create your own scoring\n");
-            prompt.append("2. Read each scoring band description carefully and match exactly\n");
-            prompt.append("3. Find EVIDENCE in the submission for each point you award\n");
-            prompt.append("4. If content is missing or poor quality, use lower bands (Fair/Needs Improvement)\n");
-            prompt.append("5. Do NOT be generous - the rubric is the law\n");
-            prompt.append("6. Excellent = exceptional work, Good = solid work, Fair = basic work, Needs Improvement = poor work\n");
-            prompt.append("7. Award the exact points from the scoring band that best matches\n\n");
-            
+            prompt.append("ESSAY EVALUATION (be brief and actionable):\n");
+            prompt.append("- Focus on 1-2 key strengths and 1-2 key improvements.\n");
+            prompt.append("- Keep feedback concise (≤ 350 characters).\n");
             prompt.append("Return your response in this JSON format:\n");
             prompt.append("{\n");
             prompt.append("  \"score\": <number of points awarded>,\n");
             prompt.append("  \"outOf\": ").append(maxPoints).append(",\n");
             prompt.append("  \"scoreBand\": \"<Excellent|Good|Fair|Needs Improvement>\",\n");
-            prompt.append("  \"gradeBand\": \"<A|B|C|D|F>\",\n");
-            prompt.append("  \"categoryBreakdown\": {\n");
-            prompt.append("    \"Content Accuracy\": <points>,\n");
-            prompt.append("    \"Clarity & Structure\": <points>,\n");
-            prompt.append("    \"Examples\": <points>,\n");
-            prompt.append("    \"Terminology\": <points>\n");
-            prompt.append("  },\n");
-            prompt.append("  \"feedback\": \"<detailed feedback with specific examples and suggestions for improvement>\"\n");
+            prompt.append("  \"feedback\": \"<max 3 short sentences (≤ 350 chars), no headings>\"\n");
             prompt.append("}\n\n");
         }
         
@@ -244,10 +237,10 @@ public class OpenAIClient {
         }
         
         String requestBody = objectMapper.writeValueAsString(Map.of(
-            "model", "gpt-3.5-turbo",
+            "model", model,
             "messages", List.of(Map.of("role", "user", "content", prompt)),
             "temperature", 0.0,
-            "max_tokens", 1000
+            "max_tokens", 1500
         ));
 
         Request request = new Request.Builder()
@@ -276,198 +269,25 @@ public class OpenAIClient {
         }
     }
     
+
+
     /**
      * Generate mock responses for testing without API key
      */
     private String generateMockResponse(String prompt) {
-        // Simulate a delay to mimic real API call
-        try {
-            Thread.sleep(1000);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
+        // Only use mock if absolutely no API key is available
+        if (apiKey == null || apiKey.trim().isEmpty()) {
+            return """
+                {
+                    "score": 0,
+                    "scoreBand": "Needs Improvement",
+                    "feedback": "No OpenAI API key available. Please set OPENAI_API_KEY environment variable for real AI-powered feedback."
+                }
+                """;
         }
         
-        if (prompt.contains("MCQ") || prompt.contains("multiple choice")) {
-            return """
-                {
-                    "score": 75,
-                    "scoreBand": "Good",
-                    "feedback": "Student demonstrated good understanding of the concepts. Correctly answered 3 out of 4 questions. Areas for improvement: review the concept of message forwarding."
-                }
-                """;
-        } else if (prompt.contains("SHORT_ANSWER") || prompt.contains("short answer")) {
-            // Generate more personalized feedback based on the actual content
-            String personalizedFeedback;
-            String overallAssessment;
-            String keyPointsJson;
-            
-            if (prompt.toLowerCase().contains("akka") || prompt.toLowerCase().contains("actor")) {
-                personalizedFeedback = "Good understanding of Akka concepts. You've grasped the basic actor model and message passing. Consider adding more specific examples of actor lifecycle and supervision strategies to strengthen your response.";
-                overallAssessment = "Overall Assessment: CORRECT - You demonstrate good understanding of Akka fundamentals";
-                keyPointsJson = """
-                    "keyPoints": [
-                        {
-                            "point": "Actor Model Understanding",
-                            "correct": true,
-                            "explanation": "You correctly identified that Akka uses the actor model for concurrency",
-                            "suggestion": "Add specific examples of actor lifecycle"
-                        },
-                        {
-                            "point": "Message Passing",
-                            "correct": true,
-                            "explanation": "You understand the basic concept of message passing between actors",
-                            "suggestion": "Provide concrete examples of tell vs ask patterns"
-                        },
-                        {
-                            "point": "Supervision Strategies",
-                            "correct": false,
-                            "explanation": "This concept was not mentioned in your response",
-                            "suggestion": "Study how supervisor strategies handle actor failures"
-                        }
-                    ]
-                    """;
-            } else if (prompt.toLowerCase().contains("tell") || prompt.toLowerCase().contains("ask")) {
-                personalizedFeedback = "You demonstrate understanding of message patterns. The distinction between 'tell' (fire-and-forget) and 'ask' (request-response) is clear. To improve, provide concrete code examples showing when to use each pattern.";
-                overallAssessment = "Overall Assessment: CORRECT - You show good understanding of message patterns";
-                keyPointsJson = """
-                    "keyPoints": [
-                        {
-                            "point": "Tell Pattern",
-                            "correct": true,
-                            "explanation": "You correctly understand tell as fire-and-forget messaging",
-                            "suggestion": "Provide code examples of tell usage"
-                        },
-                        {
-                            "point": "Ask Pattern",
-                            "correct": true,
-                            "explanation": "You understand ask returns a Future for response handling",
-                            "suggestion": "Show when to use ask vs tell in different scenarios"
-                        },
-                        {
-                            "point": "Pattern Selection",
-                            "correct": false,
-                            "explanation": "You didn't explain when to choose one pattern over the other",
-                            "suggestion": "Learn the trade-offs between tell and ask patterns"
-                        }
-                    ]
-                    """;
-            } else if (prompt.toLowerCase().contains("cluster") || prompt.toLowerCase().contains("distributed")) {
-                personalizedFeedback = "Good grasp of distributed systems concepts. You understand the benefits of clustering for scalability and fault tolerance. Consider elaborating on how cluster membership and failure detection work in practice.";
-                overallAssessment = "Overall Assessment: CORRECT - You understand distributed systems concepts";
-                keyPointsJson = """
-                    "keyPoints": [
-                        {
-                            "point": "Scalability Benefits",
-                            "correct": true,
-                            "explanation": "You correctly identified clustering for scalability",
-                            "suggestion": "Explain specific scalability metrics"
-                        },
-                        {
-                            "point": "Fault Tolerance",
-                            "correct": true,
-                            "explanation": "You understand clustering provides fault tolerance",
-                            "suggestion": "Describe specific failure scenarios and recovery"
-                        },
-                        {
-                            "point": "Cluster Membership",
-                            "correct": false,
-                            "explanation": "This aspect was not covered in your response",
-                            "suggestion": "Study how nodes join and leave clusters"
-                        }
-                    ]
-                    """;
-            } else {
-                personalizedFeedback = "Your response demonstrates solid conceptual understanding of the topic. The key points are well articulated, though you could strengthen your answer by providing more specific technical details and practical examples.";
-                overallAssessment = "Overall Assessment: PARTIALLY CORRECT - You show basic understanding";
-                keyPointsJson = """
-                    "keyPoints": [
-                        {
-                            "point": "Conceptual Understanding",
-                            "correct": true,
-                            "explanation": "You demonstrate basic understanding of the topic",
-                            "suggestion": "Add more technical depth"
-                        },
-                        {
-                            "point": "Technical Details",
-                            "correct": false,
-                            "explanation": "Your response lacks specific technical details",
-                            "suggestion": "Include concrete examples and technical specifics"
-                        },
-                        {
-                            "point": "Practical Examples",
-                            "correct": false,
-                            "explanation": "No practical examples were provided",
-                            "suggestion": "Include real-world scenarios and code examples"
-                        }
-                    ]
-                    """;
-            }
-            
-            return """
-                {
-                    "score": 0.7,
-                    "scoreBand": "Good",
-                    "feedback": "%s",
-                    "detailedFeedback": {
-                        "overallAssessment": "%s",
-                        %s
-                    }
-                }
-                """.formatted(personalizedFeedback, overallAssessment, keyPointsJson);
-        } else if (prompt.contains("ESSAY") || prompt.contains("essay")) {
-            // For essays, return scores that are appropriate for individual categories
-            if (prompt.contains("Critical Thinking")) {
-                return """
-                    {
-                        "score": 25,
-                        "scoreBand": "Good",
-                        "feedback": "Good critical thinking demonstrated. The analysis shows logical reasoning and thoughtful consideration of the topic."
-                    }
-                    """;
-            } else if (prompt.contains("Organization")) {
-                return """
-                    {
-                        "score": 24,
-                        "scoreBand": "Good",
-                        "feedback": "Well-organized structure with clear flow of ideas. Good use of transitions and logical progression."
-                    }
-                    """;
-            } else if (prompt.contains("Content Quality")) {
-                return """
-                    {
-                        "score": 26,
-                        "scoreBand": "Good",
-                        "feedback": "Good content quality with relevant information and appropriate depth of coverage."
-                    }
-                    """;
-            } else if (prompt.contains("Mechanics")) {
-                return """
-                    {
-                        "score": 8,
-                        "scoreBand": "Good",
-                        "feedback": "Good writing mechanics with few errors in grammar, spelling, and punctuation."
-                    }
-                    """;
-            } else {
-                // Default essay response
-                return """
-                    {
-                        "score": 25,
-                        "scoreBand": "Good",
-                        "feedback": "Good work overall. The essay demonstrates understanding with some areas for improvement."
-                    }
-                    """;
-            }
-        } else {
-            // Default response for evaluation prompts
-            return """
-                {
-                    "score": 70,
-                    "scoreBand": "Good",
-                    "feedback": "Good work overall. The submission demonstrates understanding of the material with some areas that could be improved. Consider adding more specific examples and details."
-                }
-                """;
-        }
+        // If we have an API key but it's marked as mock, throw an error
+        throw new RuntimeException("Invalid API key configuration. Please check your OPENAI_API_KEY environment variable.");
     }
 
     /**
@@ -625,7 +445,7 @@ public class OpenAIClient {
         try {
             // Check if we're using a mock key
             if (apiKey.equals("mock-key-for-testing") || apiKey.equals("mock-key")) {
-                return generateMockOverallFeedback(submissionContent, categoryEvaluations);
+                return "No OpenAI API key available. Please set OPENAI_API_KEY environment variable for real AI-powered feedback.";
             }
             
             String prompt = buildOverallFeedbackPrompt(submissionContent, categoryEvaluations);
@@ -645,26 +465,25 @@ public class OpenAIClient {
             Map<String, GradingEvaluation> categoryEvaluations) {
         
         StringBuilder prompt = new StringBuilder();
-        prompt.append("You are a STRICT academic evaluator. Based ONLY on the actual grading results below, provide honest feedback.\n");
-        prompt.append("Do NOT make up information or be overly generous. Stick to the facts from the scoring.\n\n");
-        
-        prompt.append("STUDENT SUBMISSION:\n");
+        prompt.append("You are an expert academic evaluator. Provide concise, student-friendly overall feedback.\n");
+        prompt.append("Keep it short, specific, and actionable.\n\n");
+
+        prompt.append("STUDENT SUBMISSION (for reference):\n");
         prompt.append(submissionContent).append("\n\n");
-        
-        prompt.append("GRADING RESULTS:\n");
+
+        prompt.append("GRADING SUMMARY:\n");
         for (GradingEvaluation eval : categoryEvaluations.values()) {
             prompt.append("- ").append(eval.category()).append(": ")
                   .append(eval.score()).append("/").append(eval.maxPoints())
-                  .append(" points (").append(eval.scoreBand()).append(")\n");
-            prompt.append("  Feedback: ").append(eval.feedback()).append("\n\n");
+                  .append(" (" ).append(eval.scoreBand()).append(")\n");
         }
-        
-        prompt.append("Provide brief, actionable feedback in 3-4 sentences:\n\n");
-        prompt.append("1. What the student did well (1 sentence)\n");
-        prompt.append("2. Main issues that need fixing (1-2 sentences)\n");
-        prompt.append("3. One specific action to improve (1 sentence)\n\n");
-        prompt.append("Keep it simple, direct, and encouraging. Avoid long explanations.\n");
-        prompt.append("IMPORTANT: Base your feedback ONLY on the actual scores given. Do not contradict the scoring results.");
+
+        prompt.append("Now produce VERY CONCISE feedback:\n");
+        prompt.append("- 3–5 bullet points, each ≤ 12 words.\n");
+        prompt.append("- 1 short next-step sentence at the end.\n");
+        prompt.append("- Total length ≤ 600 characters.\n");
+        prompt.append("- No headings, no preamble, no quotes, no repetition.\n");
+        prompt.append("- Be specific to the submission; avoid generic advice.\n");
         
         return prompt.toString();
     }
@@ -678,60 +497,6 @@ public class OpenAIClient {
         return response.trim();
     }
     
-    /**
-     * Generate mock overall feedback for testing
-     */
-    private String generateMockOverallFeedback(String submissionContent, Map<String, GradingEvaluation> categoryEvaluations) {
-        StringBuilder feedback = new StringBuilder();
-        feedback.append("Overall Assessment:\n\n");
-        
-        int totalScore = 0;
-        int maxScore = 0;
-        
-        for (GradingEvaluation eval : categoryEvaluations.values()) {
-            feedback.append(eval.category()).append(": ").append(eval.score()).append("/").append(eval.maxPoints())
-                   .append(" (").append(eval.scoreBand()).append(")\n");
-            feedback.append("Feedback: ").append(eval.feedback()).append("\n\n");
-            totalScore += eval.score();
-            maxScore += eval.maxPoints();
-        }
-        
-        double percentage = maxScore > 0 ? (double) totalScore / maxScore * 100.0 : 0.0;
-        feedback.append("Total Score: ").append(totalScore).append("/").append(maxScore)
-               .append(" (").append(String.format("%.1f", percentage)).append("%)\n\n");
-        
-        // Generate personalized overall feedback based on submission content
-        String personalizedOverallFeedback;
-        if (submissionContent.toLowerCase().contains("akka") || submissionContent.toLowerCase().contains("actor")) {
-            if (percentage >= 90) {
-                personalizedOverallFeedback = "Excellent work on Akka concepts! Your understanding of the actor model, message passing, and concurrency patterns is outstanding. You've demonstrated mastery of distributed systems principles.";
-            } else if (percentage >= 80) {
-                personalizedOverallFeedback = "Good work on Akka fundamentals. You show solid understanding of actor-based concurrency and message-driven architecture. To excel further, focus on advanced patterns like supervision strategies and cluster management.";
-            } else if (percentage >= 70) {
-                personalizedOverallFeedback = "You have a good foundation in Akka concepts. Your understanding of basic actor communication is clear. To improve, study more about fault tolerance, clustering, and real-world deployment scenarios.";
-            } else {
-                personalizedOverallFeedback = "Your Akka knowledge needs strengthening. Focus on understanding the actor model fundamentals, message passing patterns, and how Akka differs from traditional threading approaches.";
-            }
-        } else if (submissionContent.toLowerCase().contains("concurrency") || submissionContent.toLowerCase().contains("thread")) {
-            personalizedOverallFeedback = "Good understanding of concurrency concepts. Your response shows awareness of the challenges in concurrent programming. Consider exploring how Akka's actor model provides a safer alternative to traditional threading.";
-        } else if (submissionContent.toLowerCase().contains("distributed") || submissionContent.toLowerCase().contains("cluster")) {
-            personalizedOverallFeedback = "You demonstrate understanding of distributed systems challenges. Your knowledge of scalability and fault tolerance concepts is evident. To enhance your expertise, study Akka Cluster's membership and failure detection mechanisms.";
-        } else {
-            if (percentage >= 90) {
-                personalizedOverallFeedback = "Excellent work! Your submission demonstrates mastery of the subject matter with clear understanding and strong analytical skills.";
-            } else if (percentage >= 80) {
-                personalizedOverallFeedback = "Good work overall. You show solid understanding with some areas for improvement in depth and detail.";
-            } else if (percentage >= 70) {
-                personalizedOverallFeedback = "Satisfactory work. You demonstrate basic understanding but need to strengthen your analysis and provide more specific examples.";
-            } else {
-                personalizedOverallFeedback = "Your submission needs improvement. Consider reviewing the feedback for each category and revising accordingly.";
-            }
-        }
-        
-        feedback.append(personalizedOverallFeedback);
-        return feedback.toString();
-    }
-
     /**
      * Calculate actual MCQ score by comparing student answers with correct answers
      */

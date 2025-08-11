@@ -4,6 +4,8 @@ import akka.actor.typed.ActorRef;
 import akka.actor.typed.ActorSystem;
 import akka.actor.typed.Behavior;
 import akka.actor.typed.javadsl.Behaviors;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 import com.agentic.actors.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,8 +53,13 @@ public class GraddieMain {
             return;
         }
 
-        // Create actor system
-        ActorSystem<Void> system = ActorSystem.create(rootBehavior, "GraddieCluster");
+        // Load node-specific config
+        Config config = "coordinator".equals(nodeType)
+            ? ConfigFactory.parseResources("node1.conf").withFallback(ConfigFactory.load())
+            : ConfigFactory.parseResources("node2.conf").withFallback(ConfigFactory.load());
+        
+        // Create actor system with config
+        ActorSystem<Void> system = ActorSystem.create(rootBehavior, "GraddieCluster", config);
 
         System.out.println("✅ Graddie node started successfully");
         System.out.println();
@@ -101,6 +108,10 @@ public class GraddieMain {
             System.out.println("🔄 Ready to receive grading tasks");
             System.out.println();
 
+            // Spawn a pool of workers registered to the receptionist
+            for (int i = 0; i < Math.max(2, Runtime.getRuntime().availableProcessors() / 2); i++) {
+                context.spawn(GradingWorkerActor.create(), "grading-worker-" + i);
+            }
             return Behaviors.empty();
         });
     }

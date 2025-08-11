@@ -1,7 +1,8 @@
 package com.agentic.actors;
 
-import akka.actor.typed.ActorRef;
 import akka.actor.typed.Behavior;
+import akka.actor.typed.receptionist.Receptionist;
+import akka.actor.typed.receptionist.ServiceKey;
 import akka.actor.typed.javadsl.*;
 import com.agentic.models.RubricItem;
 import com.agentic.utils.OpenAIClient;
@@ -18,29 +19,27 @@ import java.util.Map;
 public class GradingWorkerActor extends AbstractBehavior<GraddieMessages.Message> {
     private static final Logger logger = LoggerFactory.getLogger(GradingWorkerActor.class);
     
-    private final String category;
     private final OpenAIClient openAIClient;
-    private final ActorRef<GraddieMessages.Message> coordinator;
+    public static final ServiceKey<GraddieMessages.Message> WORKER_SERVICE_KEY =
+            ServiceKey.create(GraddieMessages.Message.class, "grading-worker");
     
-    private GradingWorkerActor(ActorContext<GraddieMessages.Message> context, String category, ActorRef<GraddieMessages.Message> coordinator) {
+    private GradingWorkerActor(ActorContext<GraddieMessages.Message> context) {
         super(context);
-        this.category = category;
-        this.coordinator = coordinator;
-        
+        // Register with receptionist for cluster discovery
+        context.getSystem().receptionist().tell(Receptionist.register(WORKER_SERVICE_KEY, context.getSelf()));
+
         // Initialize OpenAI client using ApiKeyLoader
         String apiKey = com.agentic.utils.ApiKeyLoader.loadOpenAIKey();
         if (!com.agentic.utils.ApiKeyLoader.hasValidApiKey()) {
-            logger.warn("No valid OpenAI API key found, using mock client for category: {}", category);
+            logger.warn("No valid OpenAI API key found, using mock client for worker");
             this.openAIClient = createMockClient();
         } else {
-            this.openAIClient = new OpenAIClient(apiKey);
+            this.openAIClient = new OpenAIClient(apiKey, "https://api.openai.com/v1", "gpt-3.5-turbo");
         }
-        
-
     }
     
-    public static Behavior<GraddieMessages.Message> create(String category, ActorRef<GraddieMessages.Message> coordinator) {
-        return Behaviors.setup(context -> new GradingWorkerActor(context, category, coordinator));
+    public static Behavior<GraddieMessages.Message> create() {
+        return Behaviors.setup(GradingWorkerActor::new);
     }
     
     @Override
@@ -100,16 +99,18 @@ public class GradingWorkerActor extends AbstractBehavior<GraddieMessages.Message
                 );
             }
             
-
-            
-            // Send result back to coordinator
-            coordinator.tell(new GraddieMessages.CategoryGraded(evaluation));
+            // Send result back to replyTo (router/coordinator)
+            if (msg.getReplyTo() != null) {
+                msg.getReplyTo().tell(new GraddieMessages.CategoryGraded(evaluation));
+            }
             
         } catch (Exception e) {
             logger.error("Evaluation failed for category {}: {}", msg.getCategory(), e.getMessage());
             System.err.println("❌ LLM evaluation failed for category " + msg.getCategory() + ": " + e.getMessage());
             
-            coordinator.tell(new GraddieMessages.CategoryGradingFailed(msg.getCategory(), e.getMessage()));
+            if (msg.getReplyTo() != null) {
+                msg.getReplyTo().tell(new GraddieMessages.CategoryGradingFailed(msg.getCategory(), e.getMessage()));
+            }
         }
         
         return this;

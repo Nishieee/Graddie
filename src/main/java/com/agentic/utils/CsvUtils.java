@@ -79,29 +79,28 @@ public class CsvUtils {
     public static void writeGradingResultsToCsv(String filePath, List<GradingResult> results) throws IOException {
         try (Writer writer = new FileWriter(filePath, StandardCharsets.UTF_8);
              CSVPrinter csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT)) {
-            
-            // Write header
-            csvPrinter.printRecord(
-                "StudentID", "AssignmentName", "TotalScore", "MaxPossibleScore", 
-                "Percentage", "Grade", "GradedAt", "OverallFeedback"
-            );
-            
-            // Write category scores header
-            List<String> categoryHeaders = new ArrayList<>();
+
+            // Determine ordered category headers once
+            List<String> orderedCategories = new ArrayList<>();
             if (!results.isEmpty() && results.get(0).getCategoryScores() != null) {
-                for (String category : results.get(0).getCategoryScores().keySet()) {
-                    categoryHeaders.add(category + "_Score");
-                    categoryHeaders.add(category + "_MaxPoints");
-                    categoryHeaders.add(category + "_Percentage");
-                    categoryHeaders.add(category + "_ScoreBand");
-                    categoryHeaders.add(category + "_Feedback");
-                }
+                orderedCategories.addAll(results.get(0).getCategoryScores().keySet());
+                java.util.Collections.sort(orderedCategories);
             }
-            
-            if (!categoryHeaders.isEmpty()) {
-                csvPrinter.printRecord(categoryHeaders);
+
+            // Build single header row
+            List<String> header = new ArrayList<>(java.util.List.of(
+                "StudentID", "AssignmentName", "TotalScore", "MaxPossibleScore",
+                "Percentage", "Grade", "GradedAt", "OverallFeedback"
+            ));
+            for (String category : orderedCategories) {
+                header.add(category + "_Score");
+                header.add(category + "_MaxPoints");
+                header.add(category + "_Percentage");
+                header.add(category + "_ScoreBand");
+                header.add(category + "_Feedback");
             }
-            
+            csvPrinter.printRecord(header);
+
             // Write data rows
             for (GradingResult result : results) {
                 List<String> row = new ArrayList<>();
@@ -113,15 +112,23 @@ public class CsvUtils {
                 row.add(result.getGrade());
                 row.add(result.getGradedAt().toString());
                 row.add(result.getOverallFeedback() != null ? result.getOverallFeedback().replace("\n", " ") : "");
-                
-                // Add category scores
-                if (result.getCategoryScores() != null) {
-                    for (GradingResult.CategoryScore categoryScore : result.getCategoryScores().values()) {
-                        row.add(String.valueOf(categoryScore.getScore()));
-                        row.add(String.valueOf(categoryScore.getMaxPoints()));
-                        row.add(String.format("%.1f", categoryScore.getPercentage()));
-                        row.add(categoryScore.getScoreBand());
-                        row.add(categoryScore.getFeedback() != null ? categoryScore.getFeedback().replace("\n", " ") : "");
+
+                // Add category scores in the same order as header
+                for (String category : orderedCategories) {
+                    GradingResult.CategoryScore cs = result.getCategoryScores() != null ? result.getCategoryScores().get(category) : null;
+                    if (cs != null) {
+                        row.add(String.valueOf(cs.getScore()));
+                        row.add(String.valueOf(cs.getMaxPoints()));
+                        row.add(String.format("%.1f", cs.getPercentage()));
+                        row.add(cs.getScoreBand());
+                        row.add(cs.getFeedback() != null ? cs.getFeedback().replace("\n", " ") : "");
+                    } else {
+                        // Fill blanks if missing
+                        row.add("");
+                        row.add("");
+                        row.add("");
+                        row.add("");
+                        row.add("");
                     }
                 }
                 

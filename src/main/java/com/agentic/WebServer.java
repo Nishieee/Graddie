@@ -4,6 +4,8 @@ import akka.actor.typed.ActorRef;
 import akka.actor.typed.ActorSystem;
 import akka.actor.typed.Behavior;
 import akka.actor.typed.Props;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 import akka.actor.typed.javadsl.Behaviors;
 import akka.http.javadsl.Http;
 import akka.http.javadsl.ServerBinding;
@@ -14,6 +16,7 @@ import akka.http.javadsl.marshallers.jackson.Jackson;
 import com.agentic.actors.GraddieMessages;
 import com.agentic.actors.GradingCoordinatorActor;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.agentic.actors.GradingWorkerActor;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -26,15 +29,24 @@ public class WebServer extends AllDirectives {
     public WebServer(ActorSystem<Void> system) {
         this.system = system;
         this.objectMapper = new ObjectMapper();
+        // Spawn local workers so the web server can grade even without external nodes
+        try {
+            system.systemActorOf(Behaviors.setup(ctx -> {
+                int workers = Math.max(2, Runtime.getRuntime().availableProcessors() / 2);
+                for (int i = 0; i < workers; i++) {
+                    ctx.spawn(GradingWorkerActor.create(), "web-grading-worker-" + i);
+                }
+                return Behaviors.empty();
+            }), "web-worker-bootstrap", Props.empty());
+        } catch (Exception ignored) {}
     }
 
     public static void main(String[] args) {
         System.out.println("🚀 Starting Graddie Web Server...");
         
-        ActorSystem<Void> system = ActorSystem.create(
-            Behaviors.empty(), 
-            "GraddieWebSystem"
-        );
+        // Join the same cluster name as other nodes, using web.conf for port/host
+        Config config = ConfigFactory.parseResources("web.conf").withFallback(ConfigFactory.load());
+        ActorSystem<Void> system = ActorSystem.create(Behaviors.empty(), "GraddieCluster", config);
 
         try {
             WebServer server = new WebServer(system);
@@ -93,34 +105,47 @@ public class WebServer extends AllDirectives {
                         CompletableFuture<GraddieMessages.GradingComplete> gradingFuture = 
                             processGradingRequest(request);
                         
-                        return onSuccess(gradingFuture, result -> {
-                            try {
-                                WebResponse webResponse = new WebResponse(
-                                    result.getStudentId(),
-                                    result.getAssignmentName(),
-                                    request.questionType,
-                                    result.getTotalScore(),
-                                    result.getMaxPossibleScore(),
-                                    result.getTotalScore(),
-                                    result.getGrade(),
-                                    result.getOverallFeedback(),
-                                    result.getDetailedMCQFeedback(),
-                                    result.getDetailedFeedback(),
-                                    java.time.LocalDateTime.now().toString()
-                                );
-                                
-                                String jsonResponse = objectMapper.writeValueAsString(webResponse);
-                                System.out.println("✅ Grading completed for " + request.studentId);
+                        return onComplete(gradingFuture, tryResult -> {
+                            if (tryResult.isSuccess()) {
+                                try {
+                                    GraddieMessages.GradingComplete result = tryResult.get();
+                                    int percentage = result.getMaxPossibleScore() > 0 ?
+                                        (int) Math.round(result.getTotalScore() * 100.0 / result.getMaxPossibleScore()) : 0;
+                                    WebResponse webResponse = new WebResponse(
+                                        result.getStudentId(),
+                                        result.getAssignmentName(),
+                                        request.questionType,
+                                        result.getTotalScore(),
+                                        result.getMaxPossibleScore(),
+                                        percentage,
+                                        result.getGrade(),
+                                        result.getOverallFeedback(),
+                                        result.getDetailedMCQFeedback(),
+                                        result.getDetailedFeedback(),
+                                        java.time.LocalDateTime.now().toString()
+                                    );
+                                    
+                                    String jsonResponse = objectMapper.writeValueAsString(webResponse);
+                                    System.out.println("✅ Grading completed for " + request.studentId);
+                                    return complete(HttpResponse.create()
+                                        .withStatus(StatusCodes.OK)
+                                        .withEntity(ContentTypes.APPLICATION_JSON, jsonResponse)
+                                    );
+                                } catch (Exception e) {
+                                    System.err.println("❌ Error serializing response: " + e.getMessage());
+                                    return complete(HttpResponse.create()
+                                        .withStatus(StatusCodes.INTERNAL_SERVER_ERROR)
+                                        .withEntity(ContentTypes.APPLICATION_JSON, 
+                                            "{\"error\":\"Failed to process response\"}")
+                                    );
+                                }
+                            } else {
+                                Throwable ex = tryResult.failed().get();
+                                System.err.println("❌ Grading failed: " + ex.getMessage());
+                                String errJson = String.format("{\"error\":\"%s\"}", ex.getMessage().replace("\"", "'"));
                                 return complete(HttpResponse.create()
-                                    .withStatus(StatusCodes.OK)
-                                    .withEntity(ContentTypes.APPLICATION_JSON, jsonResponse)
-                                );
-                            } catch (Exception e) {
-                                System.err.println("❌ Error serializing response: " + e.getMessage());
-                                return complete(HttpResponse.create()
-                                    .withStatus(StatusCodes.INTERNAL_SERVER_ERROR)
-                                    .withEntity(ContentTypes.APPLICATION_JSON, 
-                                        "{\"error\":\"Failed to process response\"}")
+                                    .withStatus(StatusCodes.BAD_REQUEST)
+                                    .withEntity(ContentTypes.APPLICATION_JSON, errJson)
                                 );
                             }
                         });
@@ -390,11 +415,11 @@ public class WebServer extends AllDirectives {
                                 body: JSON.stringify(formData)
                             });
                             
-                            if (!response.ok) {
-                                throw new Error(`HTTP error! status: ${response.status}`);
-                            }
-                            
                             const data = await response.json();
+                            
+                            if (!response.ok || data.error) {
+                                throw new Error(data.error || `HTTP error! status: ${response.status}`);
+                            }
                             
                             // Store data for download functionality
                             gradingData = data;

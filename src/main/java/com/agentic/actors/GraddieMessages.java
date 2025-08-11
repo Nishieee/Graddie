@@ -123,6 +123,7 @@ public class GraddieMessages {
         private final RubricItem rubricItem;
         private final QuestionType questionType;
         private final String correctAnswers;
+        private final akka.actor.typed.ActorRef<GraddieMessages.Message> replyTo;
         
         @JsonCreator
         public GradeCategory(
@@ -130,12 +131,14 @@ public class GraddieMessages {
                 @JsonProperty("submissionContent") String submissionContent,
                 @JsonProperty("rubricItem") RubricItem rubricItem,
                 @JsonProperty("questionType") QuestionType questionType,
-                @JsonProperty("correctAnswers") String correctAnswers) {
+                @JsonProperty("correctAnswers") String correctAnswers,
+                @JsonProperty("replyTo") akka.actor.typed.ActorRef<GraddieMessages.Message> replyTo) {
             this.category = category;
             this.submissionContent = submissionContent;
             this.rubricItem = rubricItem;
             this.questionType = questionType;
             this.correctAnswers = correctAnswers;
+            this.replyTo = replyTo;
         }
         
         public String getCategory() { return category; }
@@ -143,6 +146,7 @@ public class GraddieMessages {
         public RubricItem getRubricItem() { return rubricItem; }
         public QuestionType getQuestionType() { return questionType; }
         public String getCorrectAnswers() { return correctAnswers; }
+        public akka.actor.typed.ActorRef<GraddieMessages.Message> getReplyTo() { return replyTo; }
     }
     
     public static class CategoryGraded implements Message {

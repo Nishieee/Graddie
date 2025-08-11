@@ -1,0 +1,37 @@
+🚀 Starting Graddie Web Server...
+17:45:17,909 |-INFO in ch.qos.logback.classic.LoggerContext[default] - This is logback-classic version 1.4.11
+17:45:17,909 |-INFO in ch.qos.logback.classic.util.ContextInitializer@8095847 - No custom configurators were discovered as a service.
+17:45:17,909 |-INFO in ch.qos.logback.classic.util.ContextInitializer@8095847 - Trying to configure with ch.qos.logback.classic.joran.SerializedModelConfigurator
+17:45:17,910 |-INFO in ch.qos.logback.classic.util.ContextInitializer@8095847 - Constructed configurator of type class ch.qos.logback.classic.joran.SerializedModelConfigurator
+17:45:17,929 |-INFO in ch.qos.logback.classic.LoggerContext[default] - Could NOT find resource [logback-test.scmo]
+17:45:17,929 |-INFO in ch.qos.logback.classic.LoggerContext[default] - Could NOT find resource [logback.scmo]
+17:45:17,932 |-INFO in ch.qos.logback.classic.util.ContextInitializer@8095847 - ch.qos.logback.classic.joran.SerializedModelConfigurator.configure() call lasted 19 milliseconds. ExecutionStatus=INVOKE_NEXT_IF_ANY
+17:45:17,932 |-INFO in ch.qos.logback.classic.util.ContextInitializer@8095847 - Trying to configure with ch.qos.logback.classic.util.DefaultJoranConfigurator
+17:45:17,932 |-INFO in ch.qos.logback.classic.util.ContextInitializer@8095847 - Constructed configurator of type class ch.qos.logback.classic.util.DefaultJoranConfigurator
+17:45:17,932 |-INFO in ch.qos.logback.classic.LoggerContext[default] - Could NOT find resource [logback-test.xml]
+17:45:17,933 |-INFO in ch.qos.logback.classic.LoggerContext[default] - Found resource [logback.xml] at [file:/Users/nishitamatlani/Documents/GitHub/Graddie_project/target/classes/logback.xml]
+17:45:17,983 |-WARN in ch.qos.logback.core.model.processor.AppenderModelHandler - Appender named [STDOUT] not referenced. Skipping further processing.
+17:45:17,983 |-INFO in ch.qos.logback.core.model.processor.AppenderModelHandler - Processing appender named [FILE]
+17:45:17,983 |-INFO in ch.qos.logback.core.model.processor.AppenderModelHandler - About to instantiate appender of type [ch.qos.logback.core.rolling.RollingFileAppender]
+17:45:17,993 |-INFO in c.q.l.core.rolling.TimeBasedRollingPolicy@201837266 - No compression will be used
+17:45:17,994 |-INFO in c.q.l.core.rolling.TimeBasedRollingPolicy@201837266 - Will use the pattern logs/agentic-grader.%d{yyyy-MM-dd}.log for the active file
+17:45:17,995 |-INFO in c.q.l.core.rolling.DefaultTimeBasedFileNamingAndTriggeringPolicy - The date pattern is 'yyyy-MM-dd' from file name pattern 'logs/agentic-grader.%d{yyyy-MM-dd}.log'.
+17:45:17,995 |-INFO in c.q.l.core.rolling.DefaultTimeBasedFileNamingAndTriggeringPolicy - Roll-over at midnight.
+17:45:17,996 |-INFO in c.q.l.core.rolling.DefaultTimeBasedFileNamingAndTriggeringPolicy - Setting initial period to 2025-08-08T00:46:44.088Z
+17:45:17,996 |-INFO in ch.qos.logback.core.model.processor.ImplicitModelHandler - Assuming default type [ch.qos.logback.classic.encoder.PatternLayoutEncoder] for [encoder] property
+17:45:18,002 |-INFO in ch.qos.logback.core.rolling.RollingFileAppender[FILE] - Active log file name: logs/agentic-grader.log
+17:45:18,003 |-INFO in ch.qos.logback.core.rolling.RollingFileAppender[FILE] - File property is set to [logs/agentic-grader.log]
+17:45:18,003 |-INFO in ch.qos.logback.classic.model.processor.LoggerModelHandler - Setting level of logger [com.agentic] to OFF
+17:45:18,003 |-INFO in ch.qos.logback.classic.model.processor.LoggerModelHandler - Setting level of logger [akka] to OFF
+17:45:18,003 |-INFO in ch.qos.logback.classic.model.processor.LoggerModelHandler - Setting level of logger [akka.cluster] to OFF
+17:45:18,003 |-INFO in ch.qos.logback.classic.model.processor.LoggerModelHandler - Setting level of logger [akka.remote] to OFF
+17:45:18,003 |-INFO in ch.qos.logback.classic.model.processor.RootLoggerModelHandler - Setting level of ROOT logger to OFF
+17:45:18,003 |-INFO in ch.qos.logback.core.model.processor.AppenderRefModelHandler - Attaching appender named [FILE] to Logger[ROOT]
+17:45:18,003 |-INFO in ch.qos.logback.core.model.processor.DefaultProcessor@397ea893 - End of configuration.
+17:45:18,004 |-INFO in ch.qos.logback.classic.joran.JoranConfigurator@28bc2614 - Registering current configuration as safe fallback point
+17:45:18,004 |-INFO in ch.qos.logback.classic.util.ContextInitializer@8095847 - ch.qos.logback.classic.util.DefaultJoranConfigurator.configure() call lasted 72 milliseconds. ExecutionStatus=DO_NOT_INVOKE_NEXT_IF_ANY
+
+✅ Graddie Web Server started successfully!
+🌐 Open your browser and go to: http://localhost:8080
+⏹️  Press Ctrl+C to stop the server...
+🌐 Server online at http://localhost:8080/

@@ -2,7 +2,13 @@ package com.agentic.actors;
 
 import akka.actor.typed.ActorRef;
 import akka.actor.typed.Behavior;
+import akka.actor.typed.Props;
 import akka.actor.typed.javadsl.*;
+import akka.actor.typed.receptionist.Receptionist;
+import akka.actor.typed.receptionist.ServiceKey;
+import akka.actor.typed.pubsub.Topic;
+import akka.actor.typed.ActorRefResolver;
+import akka.actor.typed.javadsl.Routers;
 import akka.pattern.Patterns;
 import com.agentic.models.RubricItem;
 import com.agentic.utils.CsvUtils;
@@ -26,6 +32,7 @@ public class GradingCoordinatorActor extends AbstractBehavior<GraddieMessages.Me
     private final ActorRef<GraddieMessages.Message> llmActor;
     private final ActorRef<GraddieMessages.Message> resultWriter;
     private final ActorRef<GraddieMessages.Message> loggerActor;
+    private ActorRef<GraddieMessages.Message> workerRouter;
     
     private List<RubricItem> rubricItems;
     private String submissionContent;
@@ -47,6 +54,11 @@ public class GradingCoordinatorActor extends AbstractBehavior<GraddieMessages.Me
         this.llmActor = context.spawn(LLMActor.create(context.getSelf()), "llm-actor");
         this.resultWriter = context.spawn(ResultWriterActor.create(context.getSelf()), "result-writer");
         this.loggerActor = context.spawn(LoggerActor.create(), "logger-actor");
+        // Group router over all discovered workers across the cluster
+        this.workerRouter = context.spawn(
+            Routers.group(GradingWorkerActor.WORKER_SERVICE_KEY),
+            "grading-worker-router"
+        );
 
     }
     
@@ -109,17 +121,16 @@ public class GradingCoordinatorActor extends AbstractBehavior<GraddieMessages.Me
     private void startCategoryGrading() {
         for (RubricItem rubricItem : rubricItems) {
             String category = rubricItem.getCategory();
-            
-            // Create a GradingWorkerActor for this category
-            ActorRef<GraddieMessages.Message> worker = getContext().spawn(
-                GradingWorkerActor.create(category, getContext().getSelf()),
-                "worker-" + category.toLowerCase().replace(" ", "-")
-            );
-            
             pendingGradings++;
-            
-            // Use tell pattern to send work to worker
-            worker.tell(new GraddieMessages.GradeCategory(category, submissionContent, rubricItem, questionType, correctAnswers));
+            // Dispatch to any available worker in the cluster via receptionist group router
+            workerRouter.tell(new GraddieMessages.GradeCategory(
+                category,
+                submissionContent,
+                rubricItem,
+                questionType,
+                correctAnswers,
+                getContext().getSelf()
+            ));
         }
     }
     
