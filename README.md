@@ -2,6 +2,30 @@
 
 Akka-based grading with a web UI, powered by OpenAI. Defaults to model `gpt-4o-mini`.
 
+### How to run (one command)
+
+Use the helper script to build and run everything end-to-end.
+
+```bash
+# 0) From project root, ensure Java and Maven are installed
+# 1) Set your API key (or put it in a .env file)
+export OPENAI_API_KEY="your-openai-api-key"
+
+# 2) Start all services (coordinator, worker, web) and open the UI
+./run_graddie.sh start
+
+# 3) Stop everything
+./run_graddie.sh stop
+
+# (optional) Check status or tail logs
+./run_graddie.sh status
+./run_graddie.sh logs
+```
+
+The script will: build the project, generate classpath, free ports 2553/2554/8080 if needed, start all nodes, wait for readiness, and open `http://localhost:8080`.
+
+---
+
 ### 1) Requirements
 - Java 17+
 - Maven 3.6+

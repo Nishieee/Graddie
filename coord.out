@@ -45,4 +45,8 @@
 🎯 INTERACTIVE GRADING MODE
 ==========================
 
-Enter student ID (or 'quit' to exit): 
+Enter student ID (or 'quit' to exit): ❌ System terminated unexpectedly: No line found
+✅ Coordinator node initialized
+📥 Submission receiver ready
+🎯 Grading coordinator ready
+
