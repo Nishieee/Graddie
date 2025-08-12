@@ -27,9 +27,11 @@ public class LLMActor extends AbstractBehavior<GraddieMessages.Message> {
         String apiKey = com.agentic.utils.ApiKeyLoader.loadOpenAIKey();
         if (!com.agentic.utils.ApiKeyLoader.hasValidApiKey()) {
             logger.error("No valid OpenAI API key found. Set OPENAI_API_KEY.");
-            this.openAIClient = new OpenAIClient(apiKey); // will behave as mock when configured so
+            this.openAIClient = new OpenAIClient(apiKey);
         } else {
-            this.openAIClient = new OpenAIClient(apiKey, "https://api.openai.com/v1", "gpt-3.5-turbo");
+            String baseUrl = com.agentic.utils.ApiKeyLoader.loadOpenAIBaseUrl();
+            String model = com.agentic.utils.ApiKeyLoader.loadOpenAIModel();
+            this.openAIClient = new OpenAIClient(apiKey, baseUrl, model);
         }
     }
     

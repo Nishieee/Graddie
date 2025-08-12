@@ -29,7 +29,7 @@ public class WebServer extends AllDirectives {
     public WebServer(ActorSystem<Void> system) {
         this.system = system;
         this.objectMapper = new ObjectMapper();
-        // Spawn local workers so the web server can grade even without external nodes
+        // Also spawn a few local workers so requests are processed even if cluster workers are unavailable
         try {
             system.systemActorOf(Behaviors.setup(ctx -> {
                 int workers = Math.max(2, Runtime.getRuntime().availableProcessors() / 2);
@@ -103,7 +103,7 @@ public class WebServer extends AllDirectives {
                         System.out.println("📝 Received grading request for student: " + request.studentId);
                         
                         CompletableFuture<GraddieMessages.GradingComplete> gradingFuture = 
-                            processGradingRequest(request);
+                            processGradingRequest(request).orTimeout(170, java.util.concurrent.TimeUnit.SECONDS);
                         
                         return onComplete(gradingFuture, tryResult -> {
                             if (tryResult.isSuccess()) {
@@ -411,26 +411,33 @@ public class WebServer extends AllDirectives {
                                 method: 'POST',
                                 headers: {
                                     'Content-Type': 'application/json',
+                                    'Accept': 'application/json'
                                 },
                                 body: JSON.stringify(formData)
                             });
-                            
-                            const data = await response.json();
-                            
-                            if (!response.ok || data.error) {
-                                throw new Error(data.error || `HTTP error! status: ${response.status}`);
+
+                            const raw = await response.text();
+                            let data;
+                            try {
+                                data = JSON.parse(raw);
+                            } catch (e) {
+                                throw new Error(raw && raw.trim() ? raw.trim() : `HTTP ${response.status}`);
                             }
-                            
+
+                            if (!response.ok || data.error) {
+                                throw new Error(data.error || `HTTP ${response.status}`);
+                            }
+
                             // Store data for download functionality
                             gradingData = data;
-                            
+
                             document.getElementById('resultStudent').textContent = data.studentId;
                             document.getElementById('resultAssignment').textContent = data.assignment;
                             document.getElementById('resultScore').textContent = data.totalScore + '/' + data.maxScore;
                             document.getElementById('resultGrade').textContent = data.grade;
                             document.getElementById('resultGrade').className = 'grade ' + data.grade;
                             document.getElementById('overallFeedback').textContent = data.overallFeedback || 'No feedback available.';
-                            
+
                             const mcqSection = document.getElementById('mcqFeedbackSection');
                             const mcqFeedback = document.getElementById('mcqFeedback');
                             if (data.mcqFeedback && data.mcqFeedback.trim() !== '') {
@@ -439,7 +446,7 @@ public class WebServer extends AllDirectives {
                             } else {
                                 mcqSection.style.display = 'none';
                             }
-                            
+
                             const detailedSection = document.getElementById('detailedFeedbackSection');
                             const detailedFeedback = document.getElementById('detailedFeedback');
                             if (data.detailedFeedback && data.detailedFeedback.trim() !== '') {
@@ -448,9 +455,9 @@ public class WebServer extends AllDirectives {
                             } else {
                                 detailedSection.style.display = 'none';
                             }
-                            
+
                             result.style.display = 'block';
-                            
+
                         } catch (err) {
                             console.error('Error:', err);
                             error.textContent = 'Error: ' + err.message;

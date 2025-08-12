@@ -47,6 +47,31 @@ public class ApiKeyLoader {
     }
 
     // OpenAI-only configuration: base URL and model are fixed unless overridden elsewhere
+
+    /**
+     * Load OpenAI base URL from config, defaulting to official API.
+     */
+    public static String loadOpenAIBaseUrl() {
+        try {
+            Properties config = loadConfigFile();
+            String url = config.getProperty("openai.baseUrl");
+            if (url != null && !url.isBlank()) return url.trim();
+        } catch (Exception ignored) {}
+        return "https://api.openai.com/v1";
+    }
+
+    /**
+     * Load OpenAI model from config, defaulting to a current lightweight model.
+     */
+    public static String loadOpenAIModel() {
+        try {
+            Properties config = loadConfigFile();
+            String model = config.getProperty("openai.model");
+            if (model != null && !model.isBlank()) return model.trim();
+        } catch (Exception ignored) {}
+        // Default to a modern inexpensive model
+        return "gpt-4o-mini";
+    }
     
     /**
      * Load configuration from config.properties file

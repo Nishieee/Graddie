@@ -205,15 +205,19 @@ public class OpenAIClient {
             prompt.append("you MUST give a score of 0.6 or higher. Don't contradict yourself!\n\n");
             
         } else { // ESSAY
-            prompt.append("ESSAY EVALUATION (be brief and actionable):\n");
-            prompt.append("- Focus on 1-2 key strengths and 1-2 key improvements.\n");
+            prompt.append("ESSAY EVALUATION (be brief, actionable, and PERSONALIZED):\n");
+            prompt.append("- Address the student directly using 'you'.\n");
+            prompt.append("- Include exactly 1 short quote (≤ 8 words) OR a paraphrase from the student's submission to prove your point.\n");
+            prompt.append("- Each point must be justified with 'because ...' referencing their content.\n");
+            prompt.append("- Avoid generic phrases like 'excellent', 'great work' without specifics.\n");
+            prompt.append("- Include one concrete next step tailored to this student's work.\n");
             prompt.append("- Keep feedback concise (≤ 350 characters).\n");
-            prompt.append("Return your response in this JSON format:\n");
+            prompt.append("Return your response in this JSON format (no extra text):\n");
             prompt.append("{\n");
             prompt.append("  \"score\": <number of points awarded>,\n");
             prompt.append("  \"outOf\": ").append(maxPoints).append(",\n");
             prompt.append("  \"scoreBand\": \"<Excellent|Good|Fair|Needs Improvement>\",\n");
-            prompt.append("  \"feedback\": \"<max 3 short sentences (≤ 350 chars), no headings>\"\n");
+            prompt.append("  \"feedback\": \"<max 3 short sentences (≤ 350 chars), speak to 'you', use one short quote or paraphrase from their text, include one tailored next step>\"\n");
             prompt.append("}\n\n");
         }
         
@@ -478,12 +482,12 @@ public class OpenAIClient {
                   .append(" (" ).append(eval.scoreBand()).append(")\n");
         }
 
-        prompt.append("Now produce VERY CONCISE feedback:\n");
-        prompt.append("- 3–5 bullet points, each ≤ 12 words.\n");
-        prompt.append("- 1 short next-step sentence at the end.\n");
+        prompt.append("Now produce VERY CONCISE, PERSONALIZED feedback for the student:\n");
+        prompt.append("- 3–5 bullets (≤ 12 words) about strengths and gaps, each with 'because ...' tied to their content.\n");
+        prompt.append("- Include exactly 1 short quote (≤ 8 words) OR a paraphrase from the student's submission.\n");
+        prompt.append("- End with one tailored next step that will help you.\n");
         prompt.append("- Total length ≤ 600 characters.\n");
-        prompt.append("- No headings, no preamble, no quotes, no repetition.\n");
-        prompt.append("- Be specific to the submission; avoid generic advice.\n");
+        prompt.append("- No headings, no preamble, no generic phrases; be specific to this submission.\n");
         
         return prompt.toString();
     }

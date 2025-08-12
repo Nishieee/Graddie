@@ -66,9 +66,15 @@ public class GraddieMain {
 
         // Keep the system running
         try {
-            // For coordinator node, provide interactive interface
             if ("coordinator".equals(nodeType)) {
-                runInteractiveMode(system);
+                boolean isInteractive = System.console() != null;
+                if (isInteractive) {
+                    runInteractiveMode(system);
+                } else {
+                    System.out.println("🖥️  No TTY detected. Running coordinator in non-interactive mode.");
+                    System.out.println("🔄 Coordinator node running. Press Ctrl+C to stop.");
+                    Thread.currentThread().join();
+                }
             } else {
                 // For worker node, just keep running
                 System.out.println("🔄 Worker node running. Press Ctrl+C to stop.");

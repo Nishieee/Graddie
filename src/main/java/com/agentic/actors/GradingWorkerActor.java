@@ -34,7 +34,9 @@ public class GradingWorkerActor extends AbstractBehavior<GraddieMessages.Message
             logger.warn("No valid OpenAI API key found, using mock client for worker");
             this.openAIClient = createMockClient();
         } else {
-            this.openAIClient = new OpenAIClient(apiKey, "https://api.openai.com/v1", "gpt-3.5-turbo");
+            String baseUrl = com.agentic.utils.ApiKeyLoader.loadOpenAIBaseUrl();
+            String model = com.agentic.utils.ApiKeyLoader.loadOpenAIModel();
+            this.openAIClient = new OpenAIClient(apiKey, baseUrl, model);
         }
     }
     
