@@ -74,10 +74,13 @@ public class CsvUtils {
     }
 
     /**
-     * Write grading results to CSV file
+     * Write grading results to CSV file (appends new results)
      */
     public static void writeGradingResultsToCsv(String filePath, List<GradingResult> results) throws IOException {
-        try (Writer writer = new FileWriter(filePath, StandardCharsets.UTF_8);
+        File file = new File(filePath);
+        boolean fileExists = file.exists() && file.length() > 0;
+        
+        try (Writer writer = new FileWriter(filePath, StandardCharsets.UTF_8, true); // true = append mode
              CSVPrinter csvPrinter = new CSVPrinter(writer, CSVFormat.DEFAULT)) {
 
             // Determine ordered category headers once
@@ -87,21 +90,24 @@ public class CsvUtils {
                 java.util.Collections.sort(orderedCategories);
             }
 
-            // Build single header row
-            List<String> header = new ArrayList<>(java.util.List.of(
-                "StudentID", "AssignmentName", "TotalScore", "MaxPossibleScore",
-                "Percentage", "Grade", "GradedAt", "OverallFeedback"
-            ));
-            for (String category : orderedCategories) {
-                header.add(category + "_Score");
-                header.add(category + "_MaxPoints");
-                header.add(category + "_Percentage");
-                header.add(category + "_ScoreBand");
-                header.add(category + "_Feedback");
+            // Only write header if file doesn't exist or is empty
+            if (!fileExists) {
+                List<String> header = new ArrayList<>(java.util.List.of(
+                    "StudentID", "AssignmentName", "TotalScore", "MaxPossibleScore",
+                    "Percentage", "Grade", "GradedAt", "OverallFeedback"
+                ));
+                for (String category : orderedCategories) {
+                    header.add(category + "_Score");
+                    header.add(category + "_MaxPoints");
+                    header.add(category + "_Percentage");
+                    header.add(category + "_ScoreBand");
+                    header.add(category + "_Feedback");
+                }
+                csvPrinter.printRecord(header);
+                logger.info("Created new CSV file with header: {}", filePath);
             }
-            csvPrinter.printRecord(header);
 
-            // Write data rows
+            // Write data rows (append to existing file)
             for (GradingResult result : results) {
                 List<String> row = new ArrayList<>();
                 row.add(result.getStudentId());
@@ -136,7 +142,7 @@ public class CsvUtils {
             }
         }
         
-
+        logger.info("Appended {} grading results to {}", results.size(), filePath);
     }
 
     /**

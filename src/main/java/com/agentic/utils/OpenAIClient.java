@@ -544,41 +544,43 @@ public class OpenAIClient {
         String[] lines = submission.split("\n");
         StringBuilder currentQuestion = new StringBuilder();
         boolean inQuestion = false;
+        String pendingQuestionKey = null;
         
         for (String line : lines) {
             line = line.trim();
             
-            // Check if this is a question line (contains "A." which indicates MCQ options)
-            if (line.contains("A.") && line.contains("B.") && line.contains("C.") && line.contains("D.")) {
-                if (inQuestion && currentQuestion.length() > 0) {
-                    // Save previous question if we have one
-                    String questionText = currentQuestion.toString().trim();
-                    if (!questionText.isEmpty()) {
-                        answers.put(questionText, ""); // Will be filled when we find the answer
-                    }
+            // Check if this is a question line (starts with "Question X:")
+            if (line.matches("Question \\d+:.*")) {
+                // Save previous question if we have one with pending answer
+                if (pendingQuestionKey != null && currentQuestion.length() > 0) {
+                    answers.put(pendingQuestionKey, ""); // No answer found yet
                 }
                 currentQuestion = new StringBuilder(line);
+                pendingQuestionKey = line;
                 inQuestion = true;
             }
-            // Check if this is an answer line
-            else if (line.matches("Answer: [A-D]")) {
-                if (inQuestion && currentQuestion.length() > 0) {
-                    String questionText = currentQuestion.toString().trim();
-                    String answer = line.substring(line.indexOf(":") + 1).trim();
-                    answers.put(questionText, answer);
-                    currentQuestion = new StringBuilder();
+            // Check if this is an answer line (case insensitive)
+            else if (line.matches("(?i)Answer: [A-D]")) {
+                if (pendingQuestionKey != null) {
+                    String answer = line.substring(line.indexOf(":") + 1).trim().toUpperCase();
+                    answers.put(pendingQuestionKey, answer);
+                    pendingQuestionKey = null;
                     inQuestion = false;
                 }
             }
-            // If we're in a question, add this line to the current question
+            // If we're building a question, add this line to the current question
             else if (inQuestion && !line.isEmpty()) {
                 currentQuestion.append("\n").append(line);
+                // Update the question key with the full question text
+                if (pendingQuestionKey != null) {
+                    pendingQuestionKey = currentQuestion.toString().trim();
+                }
             }
-            // If we see a line that looks like a question (not empty, not an answer)
-            else if (!line.isEmpty() && !line.matches("Answer: [A-D]") && !inQuestion) {
-                currentQuestion = new StringBuilder(line);
-                inQuestion = true;
-            }
+        }
+        
+        // Handle last question if no answer was provided
+        if (pendingQuestionKey != null) {
+            answers.put(pendingQuestionKey, "");
         }
         
         return answers;

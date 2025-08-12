@@ -19,6 +19,7 @@ com/agentic/actors/GraddieMessages$GradingComplete.class
 com/agentic/utils/TextPreprocessor.class
 com/agentic/actors/GraddieMessages$RubricLoadFailed.class
 com/agentic/actors/GraddieMessages$FeedbackGenerated.class
+com/agentic/WebServer$AssignmentConfig.class
 com/agentic/actors/GraddieMessages$QuestionType.class
 com/agentic/utils/OpenAIClient$GradingEvaluation.class
 com/agentic/actors/GraddieMessages$GradingFailed.class

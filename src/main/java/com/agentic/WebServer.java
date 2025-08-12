@@ -97,6 +97,23 @@ public class WebServer extends AllDirectives {
                 );
             }),
             
+            path("assignments", () ->
+                get(() -> {
+                    try {
+                        String json = getAssignmentsJson();
+                        return complete(HttpResponse.create()
+                            .withStatus(StatusCodes.OK)
+                            .withEntity(ContentTypes.APPLICATION_JSON, json)
+                        );
+                    } catch (Exception e) {
+                        return complete(HttpResponse.create()
+                            .withStatus(StatusCodes.INTERNAL_SERVER_ERROR)
+                            .withEntity(ContentTypes.APPLICATION_JSON, "{\"error\":\"Failed to load assignments\"}")
+                        );
+                    }
+                })
+            ),
+            
             path("grade", () ->
                 post(() ->
                     entity(Jackson.unmarshaller(objectMapper, SubmissionRequest.class), request -> {
@@ -114,7 +131,7 @@ public class WebServer extends AllDirectives {
                                     WebResponse webResponse = new WebResponse(
                                         result.getStudentId(),
                                         result.getAssignmentName(),
-                                        request.questionType,
+                                         deriveAssignmentConfig(request.assignment).type,
                                         result.getTotalScore(),
                                         result.getMaxPossibleScore(),
                                         percentage,
@@ -159,6 +176,27 @@ public class WebServer extends AllDirectives {
                     .withEntity(ContentTypes.TEXT_PLAIN_UTF8, "Not Found"))
             )
         );
+    }
+
+    private String getAssignmentsJson() throws Exception {
+        java.util.Map<String, Object> data = new java.util.HashMap<>();
+        java.util.Map<String, Object> a1 = new java.util.HashMap<>();
+        a1.put("type", "MCQ");
+        a1.put("detailsText", "Assignment 1: Multiple Choice (MCQ)\nTopic: Basic Math\n\n1. What is 5 + 3?\na) 6\nb) 8\nc) 10\nd) 9\n\n2. Which number is even?\na) 7\nb) 5\nc) 4\nd) 9\n\n3. What is 10 - 6?\na) 2\nb) 3\nc) 4\nd) 5");
+        a1.put("correct", "Question 1: What is 5 + 3?\nA. 6\nB. 8\nC. 10\nD. 9\nAnswer: B\n\nQuestion 2: Which number is even?\nA. 7\nB. 5\nC. 4\nD. 9\nAnswer: C\n\nQuestion 3: What is 10 - 6?\nA. 2\nB. 3\nC. 4\nD. 5\nAnswer: C");
+        a1.put("template", "Question 1: What is 5 + 3?\nA. 6\nB. 8\nC. 10\nD. 9\nAnswer: \n\nQuestion 2: Which number is even?\nA. 7\nB. 5\nC. 4\nD. 9\nAnswer: \n\nQuestion 3: What is 10 - 6?\nA. 2\nB. 3\nC. 4\nD. 5\nAnswer: ");
+
+        java.util.Map<String, Object> a2 = new java.util.HashMap<>();
+        a2.put("type", "SHORT_ANSWER");
+        a2.put("detailsText", "Assignment 2: Short Answer\nTopic: Everyday English\n\n1. Write one synonym for \"happy\".\n2. What is the opposite of \"hot\"?\n3. Complete the sentence: \"I like to eat ____ in the morning.\"");
+        a2.put("correct", "Guidance for evaluation:\n1) Synonyms for \"happy\": joyful, glad, cheerful, pleased, content.\n2) Opposite of \"hot\": cold.\n3) Acceptable completions include common breakfast foods, e.g., eggs, bread, cereal, fruit, toast, pancakes.");
+        a2.put("template", "1. Write one synonym for \"happy\".\nAnswer: \n\n2. What is the opposite of \"hot\"?\nAnswer: \n\n3. Complete the sentence: \"I like to eat ____ in the morning.\"\nAnswer: ");
+
+        java.util.Map<String, Object> assignments = new java.util.HashMap<>();
+        assignments.put("Assignment 1", a1);
+        assignments.put("Assignment 2", a2);
+        data.put("assignments", assignments);
+        return objectMapper.writeValueAsString(data);
     }
 
     private String getHTMLInterface() {
@@ -280,6 +318,28 @@ public class WebServer extends AllDirectives {
                         border: 1px solid #000000;
                         margin-top: 20px;
                     }
+                    .assignment-preview {
+                        background: #f8f9fa !important;
+                        border: 1px solid #ddd !important;
+                        padding: 15px !important;
+                        margin: 15px 0 !important;
+                        border-radius: 5px !important;
+                    }
+                    .assignment-preview h3 {
+                        margin-bottom: 10px !important;
+                        color: #333 !important;
+                        font-size: 16px !important;
+                    }
+                    .assignment-preview pre {
+                        white-space: pre-wrap !important;
+                        margin: 0 !important;
+                        background: white !important;
+                        padding: 10px !important;
+                        border-radius: 3px !important;
+                        font-family: inherit !important;
+                        line-height: 1.4 !important;
+                        border: 1px solid #eee !important;
+                    }
                 </style>
             </head>
             <body>
@@ -293,35 +353,33 @@ public class WebServer extends AllDirectives {
                         <form id="gradingForm">
                             <div class="form-group">
                                 <label for="studentId">Student ID:</label>
-                                <input type="text" id="studentId" name="studentId" required>
+                                <select id="studentId" name="studentId" required>
+                                    <option value="">Select a student</option>
+                                    <option value="STU001">STU001</option>
+                                    <option value="STU002">STU002</option>
+                                </select>
                             </div>
                             
                             <div class="form-group">
                                 <label for="assignment">Assignment Name:</label>
-                                <select id="assignment" name="assignment" required>
+                                <select id="assignment" name="assignment" required onchange="updateAssignmentPreview()">
                                     <option value="">Select an assignment</option>
-                                    <option value="Assignment 1">Assignment 1</option>
-                                    <option value="Assignment 2">Assignment 2</option>
-                                    <option value="Assignment 3">Assignment 3</option>
-                                    <option value="Assignment 4">Assignment 4</option>
-                                    <option value="Assignment 5">Assignment 5</option>
+                                    <option value="Assignment 1">Assignment 1: Multiple Choice (MCQ) Topic: Basic Math</option>
+                                    <option value="Assignment 2">Assignment 2: Short Answer Topic: Everyday English</option>
                                 </select>
                             </div>
-                            
-                            <div class="form-group">
-                                <label for="questionType">Question Type:</label>
-                                <select id="questionType" name="questionType" required>
-                                    <option value="">Select question type...</option>
-                                    <option value="MCQ">MCQ (Multiple Choice Questions)</option>
-                                    <option value="SHORT_ANSWER">Short Answer</option>
-                                    <option value="ESSAY">Essay</option>
-                                </select>
+
+                            <div class="assignment-preview" id="assignmentDetails" style="display: block; background: #f8f9fa; border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 5px;">
+                                <h3 style="margin-bottom: 10px; color: #333;">📝 Assignment Preview</h3>
+                                <pre id="assignmentDetailsPre" style="white-space: pre-wrap; margin: 0; background: white; padding: 10px; border-radius: 3px; font-family: inherit; line-height: 1.4;">Select an assignment to see its content here.</pre>
                             </div>
                             
-                            <div class="form-group">
-                                <label for="correctAnswers">Correct Answers (for MCQ):</label>
-                                <textarea id="correctAnswers" name="correctAnswers" 
-                                    placeholder="For MCQ: Enter questions with options and correct answers&#10;For other types: Leave empty"></textarea>
+                            <!-- Question Type removed: derived from assignment selection -->
+                            
+                            <div class="form-group" id="correctAnswersGroup" style="display: none;">
+                                <label for="correctAnswers">Reference (Predefined)</label>
+                                <textarea id="correctAnswers" name="correctAnswers" readonly
+                                    placeholder="Predefined reference for this assignment will appear here..."></textarea>
                             </div>
                             
                             <div class="form-group">
@@ -401,7 +459,6 @@ public class WebServer extends AllDirectives {
                         const formData = {
                             studentId: document.getElementById('studentId').value,
                             assignment: document.getElementById('assignment').value,
-                            questionType: document.getElementById('questionType').value,
                             correctAnswers: document.getElementById('correctAnswers').value,
                             submission: document.getElementById('submission').value
                         };
@@ -470,6 +527,66 @@ public class WebServer extends AllDirectives {
                     
                     // Global variable for download functionality
                     let gradingData = null;
+
+                    // Predefined assignments mapping
+                    const predefinedAssignments = {
+                        'Assignment 1': {
+                            type: 'MCQ',
+                            detailsText: 'Assignment 1: Multiple Choice (MCQ)\\nTopic: Basic Math\\n\\n1. What is 5 + 3?\\na) 6\\nb) 8\\nc) 10\\nd) 9\\n\\n2. Which number is even?\\na) 7\\nb) 5\\nc) 4\\nd) 9\\n\\n3. What is 10 - 6?\\na) 2\\nb) 3\\nc) 4\\nd) 5',
+                            correct: 'Question 1: What is 5 + 3?\\nA. 6\\nB. 8\\nC. 10\\nD. 9\\nAnswer: B\\n\\nQuestion 2: Which number is even?\\nA. 7\\nB. 5\\nC. 4\\nD. 9\\nAnswer: C\\n\\nQuestion 3: What is 10 - 6?\\nA. 2\\nB. 3\\nC. 4\\nD. 5\\nAnswer: C',
+                            template: 'Question 1: What is 5 + 3?\\nA. 6\\nB. 8\\nC. 10\\nD. 9\\nAnswer: \\n\\nQuestion 2: Which number is even?\\nA. 7\\nB. 5\\nC. 4\\nD. 9\\nAnswer: \\n\\nQuestion 3: What is 10 - 6?\\nA. 2\\nB. 3\\nC. 4\\nD. 5\\nAnswer: '
+                        },
+                        'Assignment 2': {
+                            type: 'SHORT_ANSWER',
+                            detailsText: 'Assignment 2: Short Answer\\nTopic: Everyday English\\n\\n1. Write one synonym for "happy".\\n2. What is the opposite of "hot"?\\n3. Complete the sentence: "I like to eat ____ in the morning."',
+                            correct: 'Guidance for evaluation:\\n1) Synonyms for "happy": joyful, glad, cheerful, pleased, content.\\n2) Opposite of "hot": cold.\\n3) Acceptable completions include common breakfast foods, e.g., eggs, bread, cereal, fruit, toast, pancakes.',
+                            template: '1. Write one synonym for "happy".\\nAnswer: \\n\\n2. What is the opposite of "hot"?\\nAnswer: \\n\\n3. Complete the sentence: "I like to eat ____ in the morning."\\nAnswer: '
+                        }
+                    };
+
+                    // Update function used by onchange and on load
+                    function updateAssignmentPreview() {
+                        const assignmentSelect = document.getElementById('assignment');
+                        const assignment = assignmentSelect.value;
+                        const detailsDiv = document.getElementById('assignmentDetails');
+                        const detailsPre = document.getElementById('assignmentDetailsPre');
+                        const correctAnswersGroup = document.getElementById('correctAnswersGroup');
+                        const correctAnswers = document.getElementById('correctAnswers');
+                        const submission = document.getElementById('submission');
+
+                        if (predefinedAssignments[assignment]) {
+                            const cfg = predefinedAssignments[assignment];
+                            // Show assignment details
+                            detailsPre.textContent = cfg.detailsText;
+                            detailsDiv.style.display = 'block';
+                            // Pre-fill references
+                            correctAnswers.value = cfg.correct;
+                            correctAnswersGroup.style.display = 'block';
+                            correctAnswers.required = (cfg.type === 'MCQ');
+                            // Pre-fill submission template for the student to answer
+                            submission.value = cfg.template;
+                        } else {
+                            detailsPre.textContent = 'Select an assignment to see its content here.';
+                            detailsDiv.style.display = 'block';
+                            correctAnswers.value = '';
+                            correctAnswersGroup.style.display = 'none';
+                            correctAnswers.required = false;
+                            submission.value = '';
+                        }
+                    }
+
+                    // Also bind via addEventListener to be extra safe
+                    document.getElementById('assignment').addEventListener('change', updateAssignmentPreview);
+                    // Expose globally for inline onchange
+                    window.updateAssignmentPreview = updateAssignmentPreview;
+
+                    // Trigger once now so current selection (if any) renders immediately
+                    document.addEventListener('DOMContentLoaded', function() {
+                        updateAssignmentPreview();
+                    });
+                    
+                    // Also trigger immediately in case DOMContentLoaded has already fired
+                    updateAssignmentPreview();
                     
                     function downloadResults() {
                         if (!gradingData) {
@@ -562,20 +679,22 @@ public class WebServer extends AllDirectives {
         ActorRef<GraddieMessages.Message> coordinator = system.systemActorOf(
             GradingCoordinatorActor.create(listener), "coordinator-" + System.currentTimeMillis(), Props.empty());
         
-        GraddieMessages.QuestionType questionType;
-        try {
-            questionType = GraddieMessages.QuestionType.valueOf(request.questionType);
-        } catch (IllegalArgumentException e) {
-            resultFuture.completeExceptionally(new IllegalArgumentException("Invalid question type: " + request.questionType));
+        // Override client-provided values with predefined assignment configuration
+        AssignmentConfig cfg = deriveAssignmentConfig(request.assignment);
+        if (cfg == null) {
+            resultFuture.completeExceptionally(new IllegalArgumentException("Unknown assignment: " + request.assignment));
             return resultFuture;
         }
+
+        GraddieMessages.QuestionType questionType = GraddieMessages.QuestionType.valueOf(cfg.type);
+        String effectiveCorrectAnswers = cfg.correct;
         
         GraddieMessages.StartGrading startGrading = new GraddieMessages.StartGrading(
             request.studentId,
             request.assignment,
             request.submission,
             questionType,
-            request.correctAnswers
+            effectiveCorrectAnswers
         );
         
         coordinator.tell(startGrading);
@@ -587,6 +706,32 @@ public class WebServer extends AllDirectives {
         }, 3, java.util.concurrent.TimeUnit.MINUTES);
         
         return resultFuture;
+    }
+
+    private static class AssignmentConfig {
+        final String type; // MCQ | SHORT_ANSWER
+        final String correct; // Reference/correct answers/guidance
+        AssignmentConfig(String type, String correct) {
+            this.type = type;
+            this.correct = correct;
+        }
+    }
+
+    private AssignmentConfig deriveAssignmentConfig(String assignment) {
+        if ("Assignment 1".equals(assignment)) {
+            String correct = "Question 1: What is 5 + 3?\nA. 6\nB. 8\nC. 10\nD. 9\nAnswer: B\n\n" +
+                             "Question 2: Which number is even?\nA. 7\nB. 5\nC. 4\nD. 9\nAnswer: C\n\n" +
+                             "Question 3: What is 10 - 6?\nA. 2\nB. 3\nC. 4\nD. 5\nAnswer: C";
+            return new AssignmentConfig("MCQ", correct);
+        }
+        if ("Assignment 2".equals(assignment)) {
+            String guidance = "Guidance for evaluation:\n" +
+                              "1) Synonyms for \"happy\": joyful, glad, cheerful, pleased, content.\n" +
+                              "2) Opposite of \"hot\": cold.\n" +
+                              "3) Acceptable completions include common breakfast foods, e.g., eggs, bread, cereal, fruit, toast, pancakes.";
+            return new AssignmentConfig("SHORT_ANSWER", guidance);
+        }
+        return null;
     }
 
     public static class SubmissionRequest {

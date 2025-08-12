@@ -168,6 +168,10 @@
             border-radius: 4px;
         }
 
+        #assignmentDetails pre {
+            white-space: pre-wrap;
+        }
+
         .score-display {
             font-size: 2em;
             font-weight: bold;
@@ -220,39 +224,34 @@
             <form id="gradingForm">
                 <div class="form-group">
                     <label for="studentId">Student ID</label>
-                    <input type="text" id="studentId" name="studentId" required
-                        placeholder="Enter student ID (e.g., STU001)">
+                    <select id="studentId" name="studentId" required>
+                        <option value="">Select a student</option>
+                        <option value="STU001">STU001</option>
+                        <option value="STU002">STU002</option>
+                    </select>
                 </div>
 
                 <div class="form-group">
                     <label for="assignment">Assignment Name</label>
-                    <select id="assignment" name="assignment" required>
+                    <select id="assignment" name="assignment" required onchange="updateAssignmentPreview()">
                         <option value="">Select an assignment</option>
-                        <option value="Assignment 1">Assignment 1</option>
-                        <option value="Assignment 2">Assignment 2</option>
-                        <option value="Assignment 3">Assignment 3</option>
-                        <option value="Assignment 4">Assignment 4</option>
-                        <option value="Assignment 5">Assignment 5</option>
+                        <option value="Assignment 1">Assignment 1: Multiple Choice (MCQ) Topic: Basic Math</option>
+                        <option value="Assignment 2">Assignment 2: Short Answer Topic: Everyday English</option>
                     </select>
                 </div>
 
-                <div class="form-group">
-                    <label for="questionType">Question Type</label>
-                    <select id="questionType" name="questionType" required>
-                        <option value="">Select question type...</option>
-                        <option value="MCQ">Multiple Choice Questions (MCQ)</option>
-                        <option value="SHORT_ANSWER">Short Answer</option>
-                        <option value="ESSAY">Essay</option>
-                    </select>
-                    <div class="question-type-help" id="typeHelp" style="display: none;">
-                        <div id="helpText"></div>
-                    </div>
+                <div class="question-type-help" id="assignmentDetails" style="display:block;">
+                    <strong>Assignment Preview</strong>
+                    <pre id="assignmentDetailsPre"
+                        style="margin-top:8px;">Select an assignment to see its content here.</pre>
                 </div>
+
+                <!-- Question Type removed: Derived from assignment selection -->
 
                 <div class="form-group" id="correctAnswersGroup" style="display: none;">
-                    <label for="correctAnswers">Correct Answers</label>
-                    <textarea id="correctAnswers" name="correctAnswers"
-                        placeholder="Enter correct answers..."></textarea>
+                    <label for="correctAnswers">Reference (Predefined)</label>
+                    <textarea id="correctAnswers" name="correctAnswers" readonly
+                        placeholder="Predefined reference for this assignment will appear here..."></textarea>
                     <div class="example-text" id="correctAnswersExample"></div>
                 </div>
 
@@ -278,53 +277,67 @@
     </div>
 
     <script>
-        // Question type help and examples
-        const questionTypeHelp = {
-            'MCQ': {
-                help: '<strong>Multiple Choice Questions:</strong> Enter each question with options A, B, C, D on separate lines, followed by the correct answer.',
-                correctAnswersExample: 'Question 1: What is Akka?<br>A. Database<br>B. Actor Framework<br>C. Web Server<br>D. Compiler<br>Answer: B<br><br>Question 2: What does "tell" do?<br>A. Blocks<br>B. Fire-and-forget<br>C. Returns value<br>D. Crashes<br>Answer: B',
-                submissionExample: 'Student answers the questions in the same format with their selected answers.'
-            },
-            'SHORT_ANSWER': {
-                help: '<strong>Short Answer:</strong> Brief conceptual questions requiring 1-3 sentence answers.',
-                correctAnswersExample: 'Not required for Short Answer questions.',
-                submissionExample: 'Example: "Explain the tell pattern in Akka."<br>Student answer: "The tell pattern sends a message to an actor without waiting for a response..."'
-            },
-            'ESSAY': {
-                help: '<strong>Essay:</strong> Longer form answers evaluated on multiple criteria including content, organization, and mechanics.',
-                correctAnswersExample: 'Not required for Essay questions.',
-                submissionExample: 'Student provides a detailed essay response to the given prompt.'
-            }
-        };
+        // Question Type removed; logic derived from assignment selection
 
-        document.getElementById('questionType').addEventListener('change', function () {
-            const selectedType = this.value;
-            const helpDiv = document.getElementById('typeHelp');
-            const helpText = document.getElementById('helpText');
+        // Hardcoded assignment content (most reliable)
+        function getAssignmentConfig(assignment) {
+            if (assignment === 'Assignment 1') {
+                return {
+                    type: 'MCQ',
+                    detailsText: 'Assignment 1: Multiple Choice (MCQ)\nTopic: Basic Math\n\n1. What is 5 + 3?\na) 6\nb) 8\nc) 10\nd) 9\n\n2. Which number is even?\na) 7\nb) 5\nc) 4\nd) 9\n\n3. What is 10 - 6?\na) 2\nb) 3\nc) 4\nd) 5',
+                    correct: 'Question 1: What is 5 + 3?\nA. 6\nB. 8\nC. 10\nD. 9\nAnswer: B\n\nQuestion 2: Which number is even?\nA. 7\nB. 5\nC. 4\nD. 9\nAnswer: C\n\nQuestion 3: What is 10 - 6?\nA. 2\nB. 3\nC. 4\nD. 5\nAnswer: C',
+                    template: 'Question 1: What is 5 + 3?\nA. 6\nB. 8\nC. 10\nD. 9\nAnswer: \n\nQuestion 2: Which number is even?\nA. 7\nB. 5\nC. 4\nD. 9\nAnswer: \n\nQuestion 3: What is 10 - 6?\nA. 2\nB. 3\nC. 4\nD. 5\nAnswer: '
+                };
+            }
+            if (assignment === 'Assignment 2') {
+                return {
+                    type: 'SHORT_ANSWER',
+                    detailsText: 'Assignment 2: Short Answer\nTopic: Everyday English\n\n1. Write one synonym for "happy".\n2. What is the opposite of "hot"?\n3. Complete the sentence: "I like to eat ____ in the morning."',
+                    correct: 'Guidance for evaluation:\n1) Synonyms for "happy": joyful, glad, cheerful, pleased, content.\n2) Opposite of "hot": cold.\n3) Acceptable completions include common breakfast foods, e.g., eggs, bread, cereal, fruit, toast, pancakes.',
+                    template: '1. Write one synonym for "happy".\nAnswer: \n\n2. What is the opposite of "hot"?\nAnswer: \n\n3. Complete the sentence: "I like to eat ____ in the morning."\nAnswer: '
+                };
+            }
+            return null;
+        }
+
+        // Update function used by onchange and on load
+        function updateAssignmentPreview() {
+            const assignmentSelect = document.getElementById('assignment');
+            const assignment = assignmentSelect.value;
+            const detailsDiv = document.getElementById('assignmentDetails');
+            const detailsPre = document.getElementById('assignmentDetailsPre');
             const correctAnswersGroup = document.getElementById('correctAnswersGroup');
-            const correctAnswersExample = document.getElementById('correctAnswersExample');
-            const submissionExample = document.getElementById('submissionExample');
+            const correctAnswers = document.getElementById('correctAnswers');
+            const submission = document.getElementById('submission');
 
-            if (selectedType && questionTypeHelp[selectedType]) {
-                const help = questionTypeHelp[selectedType];
-                helpText.innerHTML = help.help;
-                helpDiv.style.display = 'block';
-                correctAnswersExample.innerHTML = help.correctAnswersExample;
-                submissionExample.innerHTML = help.submissionExample;
-
-                // Show/hide correct answers field
-                if (selectedType === 'MCQ') {
-                    correctAnswersGroup.style.display = 'block';
-                    document.getElementById('correctAnswers').required = true;
-                } else {
-                    correctAnswersGroup.style.display = 'none';
-                    document.getElementById('correctAnswers').required = false;
-                }
+            const cfg = getAssignmentConfig(assignment);
+            if (cfg) {
+                // Show assignment details
+                detailsPre.textContent = cfg.detailsText;
+                detailsDiv.style.display = 'block';
+                // Pre-fill references
+                correctAnswers.value = cfg.correct;
+                correctAnswersGroup.style.display = 'block';
+                correctAnswers.required = (cfg.type === 'MCQ');
+                // Pre-fill submission template for the student to answer
+                submission.value = cfg.template;
             } else {
-                helpDiv.style.display = 'none';
+                detailsPre.textContent = 'Select an assignment to see its content here.';
+                detailsDiv.style.display = 'block';
+                correctAnswers.value = '';
                 correctAnswersGroup.style.display = 'none';
+                correctAnswers.required = false;
+                submission.value = '';
             }
-        });
+        }
+
+        // Also bind via addEventListener to be extra safe
+        document.getElementById('assignment').addEventListener('change', updateAssignmentPreview);
+        // Expose globally for inline onchange
+        window.updateAssignmentPreview = updateAssignmentPreview;
+
+        // Initialize immediately
+        updateAssignmentPreview();
 
         document.getElementById('gradingForm').addEventListener('submit', async function (e) {
             e.preventDefault();
@@ -343,7 +356,6 @@
             const data = {
                 studentId: formData.get('studentId'),
                 assignment: formData.get('assignment'),
-                questionType: formData.get('questionType'),
                 correctAnswers: formData.get('correctAnswers') || null,
                 submission: formData.get('submission')
             };
@@ -441,7 +453,6 @@
             const formData = {
                 studentId: document.getElementById('studentId').value,
                 assignment: document.getElementById('assignment').value,
-                questionType: document.getElementById('questionType').value,
                 submission: document.getElementById('submission').value
             };
 
