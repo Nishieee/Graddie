@@ -93,6 +93,7 @@ public class WebServer extends AllDirectives {
                 System.out.println("📄 Serving HTML interface...");
                 return complete(HttpResponse.create()
                     .withStatus(StatusCodes.OK)
+                    .addHeader(akka.http.javadsl.model.headers.RawHeader.create("Cache-Control", "no-store, max-age=0"))
                     .withEntity(ContentTypes.TEXT_HTML_UTF8, html)
                 );
             }),
@@ -103,6 +104,7 @@ public class WebServer extends AllDirectives {
                         String json = getAssignmentsJson();
                         return complete(HttpResponse.create()
                             .withStatus(StatusCodes.OK)
+                            .addHeader(akka.http.javadsl.model.headers.RawHeader.create("Cache-Control", "no-store, max-age=0"))
                             .withEntity(ContentTypes.APPLICATION_JSON, json)
                         );
                     } catch (Exception e) {
@@ -192,9 +194,16 @@ public class WebServer extends AllDirectives {
         a2.put("correct", "Guidance for evaluation:\n1) Synonyms for \"happy\": joyful, glad, cheerful, pleased, content.\n2) Opposite of \"hot\": cold.\n3) Acceptable completions include common breakfast foods, e.g., eggs, bread, cereal, fruit, toast, pancakes.");
         a2.put("template", "1. Write one synonym for \"happy\".\nAnswer: \n\n2. What is the opposite of \"hot\"?\nAnswer: \n\n3. Complete the sentence: \"I like to eat ____ in the morning.\"\nAnswer: ");
 
+        java.util.Map<String, Object> a3 = new java.util.HashMap<>();
+        a3.put("type", "ESSAY");
+        a3.put("detailsText", "Assignment 3: Essay\nPrompt: Does technology bring people closer together, or does it push them further apart?\n\nWrite a well-structured essay addressing the prompt. Use specific examples and support your position.");
+        a3.put("correct", "");
+        a3.put("template", "Essay Prompt:\nDoes technology bring people closer together, or does it push them further apart?\n\nYour Response:\n");
+
         java.util.Map<String, Object> assignments = new java.util.HashMap<>();
         assignments.put("Assignment 1", a1);
         assignments.put("Assignment 2", a2);
+        assignments.put("Assignment 3", a3);
         data.put("assignments", assignments);
         return objectMapper.writeValueAsString(data);
     }
@@ -366,6 +375,7 @@ public class WebServer extends AllDirectives {
                                     <option value="">Select an assignment</option>
                                     <option value="Assignment 1">Assignment 1: Multiple Choice (MCQ) Topic: Basic Math</option>
                                     <option value="Assignment 2">Assignment 2: Short Answer Topic: Everyday English</option>
+                                     <option value="Assignment 3">Assignment 3: Essay Prompt on Technology and Society</option>
                                 </select>
                             </div>
 
@@ -541,6 +551,12 @@ public class WebServer extends AllDirectives {
                             detailsText: 'Assignment 2: Short Answer\\nTopic: Everyday English\\n\\n1. Write one synonym for "happy".\\n2. What is the opposite of "hot"?\\n3. Complete the sentence: "I like to eat ____ in the morning."',
                             correct: 'Guidance for evaluation:\\n1) Synonyms for "happy": joyful, glad, cheerful, pleased, content.\\n2) Opposite of "hot": cold.\\n3) Acceptable completions include common breakfast foods, e.g., eggs, bread, cereal, fruit, toast, pancakes.',
                             template: '1. Write one synonym for "happy".\\nAnswer: \\n\\n2. What is the opposite of "hot"?\\nAnswer: \\n\\n3. Complete the sentence: "I like to eat ____ in the morning."\\nAnswer: '
+                        },
+                        'Assignment 3': {
+                            type: 'ESSAY',
+                            detailsText: 'Assignment 3: Essay\\nPrompt: Does technology bring people closer together, or does it push them further apart?\\n\\nWrite a well-structured essay addressing the prompt. Use specific examples and support your position.',
+                            correct: '',
+                            template: 'Essay Prompt:\\nDoes technology bring people closer together, or does it push them further apart?\\n\\nYour Response:\\n'
                         }
                     };
 
@@ -561,7 +577,8 @@ public class WebServer extends AllDirectives {
                             detailsDiv.style.display = 'block';
                             // Pre-fill references
                             correctAnswers.value = cfg.correct;
-                            correctAnswersGroup.style.display = 'block';
+                            // Show reference only for MCQ and SHORT_ANSWER
+                            correctAnswersGroup.style.display = (cfg.type === 'MCQ' || cfg.type === 'SHORT_ANSWER') ? 'block' : 'none';
                             correctAnswers.required = (cfg.type === 'MCQ');
                             // Pre-fill submission template for the student to answer
                             submission.value = cfg.template;
@@ -581,9 +598,12 @@ public class WebServer extends AllDirectives {
                     window.updateAssignmentPreview = updateAssignmentPreview;
 
                     // Trigger once now so current selection (if any) renders immediately
-                    document.addEventListener('DOMContentLoaded', function() {
-                        updateAssignmentPreview();
-                    });
+        document.addEventListener('DOMContentLoaded', function() {
+            updateAssignmentPreview();
+            // Ensure any browsers that fail inline onchange still update once
+            const sel = document.getElementById('assignment');
+            if (sel) sel.dispatchEvent(new Event('change'));
+        });
                     
                     // Also trigger immediately in case DOMContentLoaded has already fired
                     updateAssignmentPreview();
@@ -730,6 +750,9 @@ public class WebServer extends AllDirectives {
                               "2) Opposite of \"hot\": cold.\n" +
                               "3) Acceptable completions include common breakfast foods, e.g., eggs, bread, cereal, fruit, toast, pancakes.";
             return new AssignmentConfig("SHORT_ANSWER", guidance);
+        }
+        if ("Assignment 3".equals(assignment)) {
+            return new AssignmentConfig("ESSAY", "");
         }
         return null;
     }
