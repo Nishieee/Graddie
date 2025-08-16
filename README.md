@@ -4,19 +4,21 @@ A distributed grading system built with Akka Cluster that uses AI to grade stude
 
 ## Project Summary
 
-Graddie is an educational grading platform that showcases distributed systems principles using Akka Cluster. Students submit assignments through a web interface, and the system distributes grading tasks across multiple worker nodes that integrate with OpenAI's API for intelligent evaluation. The system processes three types of assignments (MCQ, Short Answer, Essay) using a configurable rubric and returns detailed feedback and scores.
+Distributed grading platform using Akka Cluster. Students submit assignments via web interface, tasks are distributed across worker nodes with OpenAI integration. Supports MCQ, Short Answer, and Essay assignments with rubric-based evaluation.
 
 ## Why This Project
 
-This project demonstrates key distributed systems concepts required for scalable applications:
-- **Distributed Processing**: Shows how to break down complex tasks (grading) across multiple nodes
-- **Load Balancing**: Automatically distributes work to available workers for optimal resource utilization
-- **Fault Tolerance**: Akka Cluster provides resilience through node supervision and failure handling
-- **Scalability**: Easy horizontal scaling by adding worker nodes without system downtime
-- **Real-World Integration**: Demonstrates external API integration (OpenAI) in a distributed context
-- **Actor Model**: Showcases message-passing concurrency patterns for reliable distributed communication
+Demonstrates key distributed systems concepts:
+- **Distributed Processing**: Complex grading tasks split across nodes
+- **Load Balancing**: Automatic work distribution to available workers
+- **Fault Tolerance**: Node supervision and failure handling
+- **Scalability**: Runtime horizontal scaling without downtime
+- **External Integration**: OpenAI API calls in distributed context
+- **Actor Model**: Message-passing concurrency patterns
 
 ## Cluster Architecture
+
+![System Architecture](screenshots/Architecture_diagram.png)
 
 ### Node Types
 - **Coordinator Node** (Port 2553): Cluster seed node that manages task orchestration, rubric loading, result aggregation, and worker supervision
@@ -29,99 +31,50 @@ This project demonstrates key distributed systems concepts required for scalable
 - **Dynamic Scaling**: New worker nodes can be added at runtime without affecting ongoing operations
 - **Failure Handling**: Cluster detects node failures and redistributes work to healthy nodes
 
-## Persistence Strategy
+## Persistence
 
-The system uses **file-based persistence** for simplicity and demonstration purposes:
-- **CSV Results Storage**: All grading results are persisted to `grading_results.csv` with detailed category-level scores and feedback
-- **Rubric Configuration**: Rubric definitions stored in `final_rubric.csv` allow for configurable grading criteria
-- **Concurrent Write Management**: ResultWriterActor handles concurrent access to result files using actor message serialization
-- **Structured Output**: Results include student ID, assignment type, scores, feedback, and timestamps for comprehensive tracking
-- **Append-Only Design**: New results are appended to preserve historical grading data
+- **CSV Storage**: Results in `grading_results.csv`, rubric in `final_rubric.csv`
+- **Concurrent Writes**: Actor serialization ensures thread-safe file operations
+- **Structured Output**: Student ID, scores, feedback, timestamps
 
-*Note: For production use, this could be extended to database persistence (PostgreSQL, MongoDB) using Akka Persistence for event sourcing and state recovery.*
+## Node and Actor Distribution
 
-## Actor Functionality
+| Node Type | Port | Purpose | Actor | Actor Function |
+|-----------|------|---------|-------|----------------|
+| **Coordinator Node** | 2553 | Cluster seed node, task orchestration | **GradingCoordinatorActor** | Orchestrates grading workflow, distributes tasks to workers, aggregates results, implements ASK pattern for capacity checks |
+| | | | **RubricReaderActor** | Loads rubric definitions from CSV files, validates rubric structure, provides scoring criteria to workers |
+| | | | **ResultWriterActor** | Persists grading results to CSV files, implements FORWARD pattern for CSV operations, manages concurrent writes |
+| **Web Server Node** | 8080 | HTTP interface, user interaction | **WebServer** | Serves web UI, handles REST API endpoints, manages HTTP requests/responses |
+| | | | **SubmissionReceiverActor** | Receives student submissions, validates format, implements FORWARD pattern to route to coordinator |
+| | | | **LLMActor** | Manages OpenAI integration, generates overall feedback, implements FORWARD pattern for helper delegation |
+| **Worker Node(s)** | 2554+ | Distributed processing, AI integration | **GradingWorkerActor** | Processes rubric categories, integrates with OpenAI API, handles MCQ/Essay/Short Answer logic, implements TELL pattern |
+| | | | **LoggerActor** | Centralizes distributed logging, formats log output, coordinates cluster-wide logging |
 
-### GradingCoordinatorActor
-- **Role**: Orchestrates the grading workflow and manages cluster coordination
-- **Responsibilities**: 
-  - Loads rubric configuration from CSV files
-  - Distributes grading tasks to worker pool using round-robin routing
-  - Aggregates results from multiple workers
-  - Coordinates with ResultWriterActor for persistence
-  - Implements ASK pattern for capacity checks before task distribution
+### Node Responsibilities Summary
 
-### GradingWorkerActor
-- **Role**: Processes individual grading tasks with AI integration
-- **Responsibilities**:
-  - Evaluates specific rubric categories (Content, Organization, Critical Thinking, Mechanics)
-  - Integrates with OpenAI API for intelligent scoring and feedback generation
-  - Handles different assignment types (MCQ, Short Answer, Essay) with specialized logic
-  - Implements TELL pattern for sending results back to coordinator
-  - Provides worker health status and capacity information
+| Node | Primary Role | Key Capabilities |
+|------|-------------|------------------|
+| **Coordinator** | **Task Management** | • Cluster seed and leader election<br/>• Work distribution and load balancing<br/>• Result aggregation and persistence<br/>• Configuration management |
+| **Web Server** | **User Interface** | • HTTP request handling<br/>• Submission validation and routing<br/>• Response formatting and delivery<br/>• LLM feedback coordination |
+| **Worker** | **Processing Engine** | • AI-powered evaluation<br/>• Rubric-based scoring<br/>• Parallel task execution<br/>• Distributed logging |
 
-### SubmissionReceiverActor
-- **Role**: Handles incoming student submissions and routes them through the system
-- **Responsibilities**:
-  - Receives student submissions from the web interface
-  - Validates submission format and content
-  - Implements FORWARD pattern to route submissions to coordinator while preserving sender context
-  - Tracks submission metadata for result correlation
+## Communication Patterns
 
-### LLMActor
-- **Role**: Manages LLM integration and overall feedback generation
-- **Responsibilities**:
-  - Generates comprehensive feedback by synthesizing category-level evaluations
-  - Manages OpenAI API connections and rate limiting
-  - Implements FORWARD pattern for delegating complex feedback generation to helper actors
-  - Handles LLM request failures and retry logic
+![Message Flow](screenshots/simplified_flow.png)
 
-### ResultWriterActor
-- **Role**: Persists grading results and manages output formatting
-- **Responsibilities**:
-  - Writes grading results to CSV files with proper formatting
-  - Implements FORWARD pattern for delegating CSV operations to helper actors
-  - Manages file locking and concurrent write operations
-  - Generates structured output with category-level details
-
-### RubricReaderActor
-- **Role**: Loads and manages grading rubric configuration
-- **Responsibilities**:
-  - Reads rubric definitions from CSV configuration files
-  - Validates rubric structure and scoring bands
-  - Provides rubric data to workers for consistent grading
-  - Handles rubric updates and reconfiguration
-
-### LoggerActor
-- **Role**: Manages distributed logging across the cluster
-- **Responsibilities**:
-  - Centralizes log message collection from all cluster nodes
-  - Formats and structures log output for debugging and monitoring
-  - Handles log message routing and persistence
-  - Provides cluster-wide logging coordination and log level management
+- **TELL**: Fire-and-forget messaging (GradingWorkerActor → Coordinator)
+- **ASK**: Request-response with futures (capacity checks, health monitoring)
+- **FORWARD**: Message delegation with sender preservation (routing, delegation)
 
 ## Most Important Implementation Details
 
-### Out-of-the-Box Distributed Systems Features
-- **Complete Akka Cluster Implementation**: Full cluster setup with seed nodes, member discovery, and failure detection
-- **Three Communication Patterns**: 
-  - **TELL Pattern**: Fire-and-forget messaging (GradingWorkerActor → Coordinator)
-  - **ASK Pattern**: Request-response with futures (capacity checks, health monitoring)
-  - **FORWARD Pattern**: Message delegation with sender preservation (SubmissionReceiver, LLMActor, ResultWriter)
-- **Load Balancing Router**: Automatic work distribution using Akka's router with round-robin strategy
-- **Horizontal Scaling**: Runtime addition of worker nodes without downtime
-- **External Integration**: OpenAI API integration across distributed workers with error handling
-- **Concurrent State Management**: Thread-safe result aggregation and CSV writing using actor model
-- **Configuration Management**: Distributed configuration loading across cluster nodes
-- **Health Monitoring**: Worker capacity checking and cluster health status
-
-### Advanced Implementation Features
-- **Multiple Assignment Types**: Different processing logic for MCQ, Short Answer, and Essay assignments
-- **Rubric-Based Evaluation**: Configurable scoring criteria loaded from CSV with category-level feedback
-- **Interactive Demo Script**: `demo_distribution.sh` showcases scaling, load balancing, and communication patterns
-- **Comprehensive Logging**: Distributed logging across all nodes with structured output
-- **REST API**: Full HTTP interface for programmatic access beyond web UI
-- **Error Recovery**: Graceful handling of API failures, network issues, and node failures
+### Key Features
+- **Akka Cluster**: Seed nodes, member discovery, failure detection
+- **Load Balancing**: Round-robin work distribution across workers
+- **Horizontal Scaling**: Add worker nodes at runtime
+- **OpenAI Integration**: Distributed API calls with error handling
+- **Three Assignment Types**: MCQ, Short Answer, Essay with specialized logic
+- **Interactive Demo**: `demo_distribution.sh` showcases all patterns
 
 ## Quick Start
 
@@ -149,21 +102,7 @@ open http://localhost:8080
 ./run_graddie.sh logs     # View logs
 ```
 
-## Architecture
 
-The system uses **Akka Cluster** with three types of nodes:
-
-- **Web Server** (Port 8080): HTTP interface and user interaction
-- **Coordinator** (Port 2553): Task orchestration and cluster management  
-- **Workers** (Port 2554+): Distributed processing and LLM integration
-
-**Message Flow**: Web → Coordinator → Workers → OpenAI → Results → CSV
-
-## Assignment Types
-
-1. **MCQ**: Multiple choice with strict answer matching
-2. **Short Answer**: Reference-based scoring with AI feedback
-3. **Essay**: Comprehensive rubric evaluation
 
 ## Demonstration
 

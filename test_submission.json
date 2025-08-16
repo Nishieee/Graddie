@@ -1,0 +1,7 @@
+{
+    "studentId": "demo_student_ID",
+    "assignment": "Assignment 1",
+    "submission": "This is a test submission for load balancing demonstration. The system should distribute this work across available worker nodes.",
+    "questionType": "MCQ",
+    "correctAnswers": ["A", "B", "C"]
+}
