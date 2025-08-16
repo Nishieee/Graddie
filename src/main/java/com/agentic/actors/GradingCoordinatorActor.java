@@ -9,7 +9,7 @@ import akka.actor.typed.receptionist.ServiceKey;
 import akka.actor.typed.pubsub.Topic;
 import akka.actor.typed.ActorRefResolver;
 import akka.actor.typed.javadsl.Routers;
-import akka.pattern.Patterns;
+import akka.actor.typed.javadsl.AskPattern;
 import com.agentic.models.RubricItem;
 import com.agentic.utils.CsvUtils;
 import com.agentic.utils.OpenAIClient.GradingEvaluation;
@@ -33,6 +33,7 @@ public class GradingCoordinatorActor extends AbstractBehavior<GraddieMessages.Me
     private final ActorRef<GraddieMessages.Message> resultWriter;
     private final ActorRef<GraddieMessages.Message> loggerActor;
     private ActorRef<GraddieMessages.Message> workerRouter;
+    private ActorRef<GraddieMessages.Message> loadBalancer;
     
     private List<RubricItem> rubricItems;
     private String submissionContent;
@@ -59,6 +60,8 @@ public class GradingCoordinatorActor extends AbstractBehavior<GraddieMessages.Me
             Routers.group(GradingWorkerActor.WORKER_SERVICE_KEY),
             "grading-worker-router"
         );
+        
+        // Note: LoadBalancer removed - using direct worker routing for simplicity and reliability
 
     }
     
@@ -82,6 +85,9 @@ public class GradingCoordinatorActor extends AbstractBehavior<GraddieMessages.Me
                 .onMessage(GraddieMessages.FeedbackGenerationFailed.class, this::onFeedbackGenerationFailed)
                 .onMessage(GraddieMessages.ResultsWritten.class, this::onResultsWritten)
                 .onMessage(GraddieMessages.ResultsWriteFailed.class, this::onResultsWriteFailed)
+                .onMessage(GraddieMessages.GradingCapacityCheck.class, this::onGradingCapacityCheck)
+                .onMessage(GraddieMessages.GradingCapacityResponse.class, this::onGradingCapacityResponse)
+                .onMessage(GraddieMessages.ForwardedSubmission.class, this::onForwardedSubmission)
                 .build();
     }
     
@@ -119,27 +125,67 @@ public class GradingCoordinatorActor extends AbstractBehavior<GraddieMessages.Me
     }
     
     private void startCategoryGrading() {
+        logger.info("🎯 Starting category grading for {} categories", rubricItems.size());
+        
+        // ASK PATTERN: Check worker capacity before distributing work
+        var capacityFuture = 
+            AskPattern.ask(workerRouter, 
+                (ActorRef<GraddieMessages.Message> replyTo) -> new GraddieMessages.GradingCapacityCheck(replyTo),
+                Duration.ofSeconds(5), 
+                getContext().getSystem().scheduler());
+        
+        // Handle the response asynchronously
+        capacityFuture.whenComplete((response, throwable) -> {
+            if (throwable != null) {
+                logger.warn("🔍 ASK pattern capacity check failed: {}", throwable.getMessage());
+                // Proceed with distribution anyway
+                distributeGradingTasks();
+            } else {
+                var capacityResponse = (GraddieMessages.GradingCapacityResponse) response;
+                logger.info("🔍 ASK pattern capacity check successful: {} available workers", 
+                    capacityResponse.getAvailableWorkers());
+                // Proceed with distribution
+                distributeGradingTasks();
+            }
+        });
+    }
+    
+    private void distributeGradingTasks() {
         for (RubricItem rubricItem : rubricItems) {
             String category = rubricItem.getCategory();
             pendingGradings++;
-            // Dispatch to any available worker in the cluster via receptionist group router
-            workerRouter.tell(new GraddieMessages.GradeCategory(
+            
+            GraddieMessages.GradeCategory gradingTask = new GraddieMessages.GradeCategory(
                 category,
                 submissionContent,
                 rubricItem,
                 questionType,
                 correctAnswers,
                 getContext().getSelf()
-            ));
+            );
+            
+            // Send directly to worker router (load balancer removed for simplicity)
+            workerRouter.tell(gradingTask);
+            logger.debug("➡️ Sent task '{}' to worker router", category);
         }
     }
     
     private Behavior<GraddieMessages.Message> onCategoryGraded(GraddieMessages.CategoryGraded msg) {
         GradingEvaluation evaluation = msg.getEvaluation();
         
-        // If this is an MCQ evaluation and we have detailed feedback, store it
-        if (questionType == GraddieMessages.QuestionType.MCQ && evaluation.feedback().contains("Here's the breakdown")) {
-            this.detailedMCQFeedback = evaluation.feedback();
+        // If this is an MCQ evaluation, store the detailed feedback
+        if (questionType == GraddieMessages.QuestionType.MCQ) {
+            System.out.println("🔍 MCQ Evaluation received:");
+            System.out.println("   Feedback length: " + evaluation.feedback().length() + " chars");
+            System.out.println("   Feedback preview: " + evaluation.feedback().substring(0, Math.min(100, evaluation.feedback().length())) + "...");
+            
+            // For MCQ, the main feedback IS the detailed feedback (question-by-question breakdown)
+            if (evaluation.feedback().length() > 50) { // Basic check that we have substantial feedback
+                this.detailedMCQFeedback = evaluation.feedback();
+                System.out.println("✅ Stored MCQ detailed feedback: " + this.detailedMCQFeedback.length() + " chars");
+            } else {
+                System.out.println("⚠️ MCQ feedback seems too short, not storing as detailed feedback");
+            }
         }
         
         // If this is a Short Answer evaluation and we have detailed feedback, store it
@@ -262,6 +308,13 @@ public class GradingCoordinatorActor extends AbstractBehavior<GraddieMessages.Me
         // Send completion message with the actual feedback
         if (replyTo != null) {
             String feedback = (generatedFeedback != null) ? generatedFeedback : "Grading completed successfully. Check the CSV file for detailed results.";
+            
+            // Debug: Print what we're sending
+            System.out.println("🔍 FINAL RESULT DEBUG:");
+            System.out.println("   Overall feedback length: " + feedback.length() + " chars");
+            System.out.println("   MCQ feedback: " + (detailedMCQFeedback != null ? detailedMCQFeedback.length() + " chars" : "null"));
+            System.out.println("   Detailed feedback: " + (detailedFeedback != null ? detailedFeedback.length() + " chars" : "null"));
+            
             replyTo.tell(new GraddieMessages.GradingComplete(
                 studentId, assignmentName, totalScore, maxPossibleScore, grade, feedback, detailedMCQFeedback, detailedFeedback
             ));
@@ -291,5 +344,57 @@ public class GradingCoordinatorActor extends AbstractBehavior<GraddieMessages.Me
         else if (percentage >= 70) return "C";
         else if (percentage >= 60) return "D";
         else return "F";
+    }
+    
+    /**
+     * ASK PATTERN RESPONSE: Handle capacity check requests
+     */
+    private Behavior<GraddieMessages.Message> onGradingCapacityCheck(GraddieMessages.GradingCapacityCheck msg) {
+        // This coordinator can handle one submission at a time
+        int availableCapacity = (pendingGradings == 0) ? 1 : 0;
+        int queuedJobs = pendingGradings;
+        
+        GraddieMessages.GradingCapacityResponse response = new GraddieMessages.GradingCapacityResponse(
+            availableCapacity, 1, queuedJobs);
+        
+        msg.getReplyTo().tell(response);
+        
+        logger.debug("📊 Coordinator capacity check: available={}, queued={}", availableCapacity, queuedJobs);
+        
+        return this;
+    }
+    
+    /**
+     * Handle capacity responses (from load balancer)
+     */
+    private Behavior<GraddieMessages.Message> onGradingCapacityResponse(GraddieMessages.GradingCapacityResponse msg) {
+        logger.debug("📈 Received capacity response: {} available, {} total, {} queued", 
+            msg.getAvailableWorkers(), msg.getTotalCapacity(), msg.getQueuedJobs());
+        return this;
+    }
+    
+    /**
+     * FORWARD PATTERN HANDLING: Process forwarded submissions
+     */
+    private Behavior<GraddieMessages.Message> onForwardedSubmission(GraddieMessages.ForwardedSubmission msg) {
+        logger.info("🔄 Processing forwarded submission from {}: {}", 
+            msg.getOriginalSender().path(), msg.getRoutingInfo());
+        
+        // Extract original submission and process it
+        GraddieMessages.StudentSubmission originalSubmission = msg.getOriginalSubmission();
+        
+        // Convert to StartGrading and process normally
+        GraddieMessages.StartGrading startGrading = new GraddieMessages.StartGrading(
+            originalSubmission.getStudentId(),
+            originalSubmission.getAssignmentName(),
+            originalSubmission.getSubmissionContent(),
+            originalSubmission.getQuestionType(),
+            originalSubmission.getCorrectAnswers()
+        );
+        
+        // Process the forwarded submission
+        getContext().getSelf().tell(startGrading);
+        
+        return this;
     }
 } 

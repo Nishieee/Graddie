@@ -1,5 +1,6 @@
 package com.agentic.actors;
 
+import akka.actor.typed.ActorRef;
 import com.agentic.models.RubricItem;
 import com.agentic.utils.OpenAIClient.GradingEvaluation;
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -345,5 +346,154 @@ public class GraddieMessages {
         public String getLevel() { return level; }
         public String getMessage() { return message; }
         public String getSource() { return source; }
+    }
+
+    // Ask pattern messages - for request-response communication
+    public static class WorkerHealthCheck implements Message {
+        private final String requestId;
+        private final ActorRef<Message> replyTo;
+        
+        @JsonCreator
+        public WorkerHealthCheck(
+                @JsonProperty("requestId") String requestId,
+                @JsonProperty("replyTo") ActorRef<Message> replyTo) {
+            this.requestId = requestId;
+            this.replyTo = replyTo;
+        }
+        
+        public String getRequestId() { return requestId; }
+        public ActorRef<Message> getReplyTo() { return replyTo; }
+    }
+    
+    public static class WorkerHealthStatus implements Message {
+        private final String requestId;
+        private final String workerId;
+        private final boolean healthy;
+        private final int currentLoad;
+        private final long responseTimeMs;
+        
+        @JsonCreator
+        public WorkerHealthStatus(
+                @JsonProperty("requestId") String requestId,
+                @JsonProperty("workerId") String workerId,
+                @JsonProperty("healthy") boolean healthy,
+                @JsonProperty("currentLoad") int currentLoad,
+                @JsonProperty("responseTimeMs") long responseTimeMs) {
+            this.requestId = requestId;
+            this.workerId = workerId;
+            this.healthy = healthy;
+            this.currentLoad = currentLoad;
+            this.responseTimeMs = responseTimeMs;
+        }
+        
+        public String getRequestId() { return requestId; }
+        public String getWorkerId() { return workerId; }
+        public boolean isHealthy() { return healthy; }
+        public int getCurrentLoad() { return currentLoad; }
+        public long getResponseTimeMs() { return responseTimeMs; }
+    }
+
+    public static class GradingCapacityCheck implements Message {
+        private final ActorRef<Message> replyTo;
+        
+        @JsonCreator
+        public GradingCapacityCheck(@JsonProperty("replyTo") ActorRef<Message> replyTo) {
+            this.replyTo = replyTo;
+        }
+        
+        public ActorRef<Message> getReplyTo() { return replyTo; }
+    }
+    
+    public static class GradingCapacityResponse implements Message {
+        private final int availableWorkers;
+        private final int totalCapacity;
+        private final int queuedJobs;
+        
+        @JsonCreator
+        public GradingCapacityResponse(
+                @JsonProperty("availableWorkers") int availableWorkers,
+                @JsonProperty("totalCapacity") int totalCapacity,
+                @JsonProperty("queuedJobs") int queuedJobs) {
+            this.availableWorkers = availableWorkers;
+            this.totalCapacity = totalCapacity;
+            this.queuedJobs = queuedJobs;
+        }
+        
+        public int getAvailableWorkers() { return availableWorkers; }
+        public int getTotalCapacity() { return totalCapacity; }
+        public int getQueuedJobs() { return queuedJobs; }
+    }
+
+    // Forward pattern messages - for delegation and routing
+    public static class ForwardedSubmission implements Message {
+        private final StudentSubmission originalSubmission;
+        private final ActorRef<Message> originalSender;
+        private final String routingInfo;
+        
+        @JsonCreator
+        public ForwardedSubmission(
+                @JsonProperty("originalSubmission") StudentSubmission originalSubmission,
+                @JsonProperty("originalSender") ActorRef<Message> originalSender,
+                @JsonProperty("routingInfo") String routingInfo) {
+            this.originalSubmission = originalSubmission;
+            this.originalSender = originalSender;
+            this.routingInfo = routingInfo;
+        }
+        
+        public StudentSubmission getOriginalSubmission() { return originalSubmission; }
+        public ActorRef<Message> getOriginalSender() { return originalSender; }
+        public String getRoutingInfo() { return routingInfo; }
+    }
+
+    public static class DelegateGrading implements Message {
+        private final GradeCategory gradingTask;
+        private final ActorRef<Message> originalRequester;
+        private final String delegationReason;
+        
+        @JsonCreator
+        public DelegateGrading(
+                @JsonProperty("gradingTask") GradeCategory gradingTask,
+                @JsonProperty("originalRequester") ActorRef<Message> originalRequester,
+                @JsonProperty("delegationReason") String delegationReason) {
+            this.gradingTask = gradingTask;
+            this.originalRequester = originalRequester;
+            this.delegationReason = delegationReason;
+        }
+        
+        public GradeCategory getGradingTask() { return gradingTask; }
+        public ActorRef<Message> getOriginalRequester() { return originalRequester; }
+        public String getDelegationReason() { return delegationReason; }
+    }
+
+    public static class WorkerLoadBalanceRequest implements Message {
+        private final GradeCategory gradingTask;
+        private final ActorRef<Message> replyTo;
+        
+        @JsonCreator
+        public WorkerLoadBalanceRequest(
+                @JsonProperty("gradingTask") GradeCategory gradingTask,
+                @JsonProperty("replyTo") ActorRef<Message> replyTo) {
+            this.gradingTask = gradingTask;
+            this.replyTo = replyTo;
+        }
+        
+        public GradeCategory getGradingTask() { return gradingTask; }
+        public ActorRef<Message> getReplyTo() { return replyTo; }
+    }
+
+    public static class SubmissionRoutingDecision implements Message {
+        private final String targetCoordinator;
+        private final String reason;
+        
+        @JsonCreator
+        public SubmissionRoutingDecision(
+                @JsonProperty("targetCoordinator") String targetCoordinator,
+                @JsonProperty("reason") String reason) {
+            this.targetCoordinator = targetCoordinator;
+            this.reason = reason;
+        }
+        
+        public String getTargetCoordinator() { return targetCoordinator; }
+        public String getReason() { return reason; }
     }
 } 

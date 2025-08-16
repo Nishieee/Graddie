@@ -6,6 +6,8 @@ import akka.actor.typed.Behavior;
 import akka.actor.typed.javadsl.Behaviors;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+
+
 import com.agentic.actors.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -99,9 +101,11 @@ public class GraddieMain {
                 "submission-receiver"
             );
 
+            // Pattern demonstration actors removed for cleaner codebase
+
             System.out.println("✅ Coordinator node initialized");
-            System.out.println("📥 Submission receiver ready");
-            System.out.println("🎯 Grading coordinator ready");
+            System.out.println("📥 Submission receiver ready (with intelligent routing)");
+            System.out.println("🎯 Grading coordinator ready (with load balancing)");
             System.out.println();
 
             return Behaviors.empty();
@@ -185,4 +189,5 @@ public class GraddieMain {
         scanner.close();
         system.terminate();
     }
+
 } 

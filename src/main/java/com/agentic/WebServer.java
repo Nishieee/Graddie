@@ -17,6 +17,9 @@ import com.agentic.actors.GraddieMessages;
 import com.agentic.actors.GradingCoordinatorActor;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.agentic.actors.GradingWorkerActor;
+import akka.pattern.Patterns;
+import akka.actor.typed.javadsl.AskPattern;
+import java.time.Duration;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -37,7 +40,7 @@ public class WebServer extends AllDirectives {
                     ctx.spawn(GradingWorkerActor.create(), "web-grading-worker-" + i);
                 }
                 return Behaviors.empty();
-            }), "web-worker-bootstrap", Props.empty());
+            }), "web-worker-bootstrap", akka.actor.typed.Props.empty());
         } catch (Exception ignored) {}
     }
 
@@ -717,7 +720,23 @@ public class WebServer extends AllDirectives {
             effectiveCorrectAnswers
         );
         
-        coordinator.tell(startGrading);
+        // ASK PATTERN: Check coordinator capacity before sending grading request
+        var capacityCheck = 
+            AskPattern.ask(coordinator,
+                (ActorRef<GraddieMessages.Message> replyTo) -> new GraddieMessages.GradingCapacityCheck(replyTo),
+                Duration.ofSeconds(3),
+                system.scheduler());
+        
+        capacityCheck.whenComplete((response, throwable) -> {
+            if (throwable != null) {
+                System.out.println("🔍 ASK pattern coordinator capacity check failed, proceeding anyway: " + throwable.getMessage());
+            } else {
+                var capacityResponse = (GraddieMessages.GradingCapacityResponse) response;
+                System.out.println("🔍 ASK pattern coordinator capacity check: " + capacityResponse.getAvailableWorkers() + " available");
+            }
+            // Send the grading request regardless of capacity check result
+            coordinator.tell(startGrading);
+        });
         
         java.util.concurrent.Executors.newSingleThreadScheduledExecutor().schedule(() -> {
             if (!resultFuture.isDone()) {
@@ -798,4 +817,5 @@ public class WebServer extends AllDirectives {
         
         public WebResponse() {}
     }
+
 } 

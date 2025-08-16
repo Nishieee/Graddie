@@ -20,11 +20,18 @@ public class GradingWorkerActor extends AbstractBehavior<GraddieMessages.Message
     private static final Logger logger = LoggerFactory.getLogger(GradingWorkerActor.class);
     
     private final OpenAIClient openAIClient;
+    private final String workerId;
+    private int currentLoad = 0;
+    private final int maxCapacity = 5; // Maximum concurrent grading tasks
+    private long lastHealthCheck = System.currentTimeMillis();
+    
     public static final ServiceKey<GraddieMessages.Message> WORKER_SERVICE_KEY =
             ServiceKey.create(GraddieMessages.Message.class, "grading-worker");
     
     private GradingWorkerActor(ActorContext<GraddieMessages.Message> context) {
         super(context);
+        this.workerId = context.getSelf().path().name();
+        
         // Register with receptionist for cluster discovery
         context.getSystem().receptionist().tell(Receptionist.register(WORKER_SERVICE_KEY, context.getSelf()));
 
@@ -38,6 +45,8 @@ public class GradingWorkerActor extends AbstractBehavior<GraddieMessages.Message
             String model = com.agentic.utils.ApiKeyLoader.loadOpenAIModel();
             this.openAIClient = new OpenAIClient(apiKey, baseUrl, model);
         }
+        
+        logger.info("🚀 Worker {} initialized with capacity {}", workerId, maxCapacity);
     }
     
     public static Behavior<GraddieMessages.Message> create() {
@@ -48,10 +57,17 @@ public class GradingWorkerActor extends AbstractBehavior<GraddieMessages.Message
     public Receive<GraddieMessages.Message> createReceive() {
         return newReceiveBuilder()
                 .onMessage(GraddieMessages.GradeCategory.class, this::onGradeCategory)
+                .onMessage(GraddieMessages.WorkerHealthCheck.class, this::onHealthCheck)
+                .onMessage(GraddieMessages.GradingCapacityCheck.class, this::onCapacityCheck)
+                .onMessage(GraddieMessages.DelegateGrading.class, this::onDelegateGrading)
                 .build();
     }
     
-        private Behavior<GraddieMessages.Message> onGradeCategory(GraddieMessages.GradeCategory msg) {
+    private Behavior<GraddieMessages.Message> onGradeCategory(GraddieMessages.GradeCategory msg) {
+        // Track current load
+        currentLoad++;
+        logger.debug("🔄 Worker {} processing grading task, current load: {}/{}", workerId, currentLoad, maxCapacity);
+        
         // Create score bands map
         Map<String, RubricItem.ScoreBand> scoreBands = new HashMap<>();
         if (msg.getRubricItem().getExcellent() != null) {
@@ -73,7 +89,12 @@ public class GradingWorkerActor extends AbstractBehavior<GraddieMessages.Message
             if (msg.getQuestionType() == com.agentic.actors.GraddieMessages.QuestionType.MCQ && 
                 msg.getCorrectAnswers() != null && !msg.getCorrectAnswers().isEmpty()) {
                 
+                System.out.println("🧮 Calculating MCQ score for category: " + msg.getCategory());
                 mcqScore = openAIClient.calculateMCQScore(msg.getSubmissionContent(), msg.getCorrectAnswers());
+                if (mcqScore != null) {
+                    System.out.println("✅ MCQ Score calculated: " + mcqScore.getScoreSummary());
+                    System.out.println("📝 MCQ Detailed feedback length: " + mcqScore.getDetailedFeedback().length() + " chars");
+                }
             }
             
             // Use synchronous evaluation with question type and correct answers
@@ -91,19 +112,27 @@ public class GradingWorkerActor extends AbstractBehavior<GraddieMessages.Message
             if (mcqScore != null) {
                 // Calculate actual MCQ score: (correct_answers / total_questions) * max_points
                 int actualMCQScore = (int) Math.round((double) mcqScore.correctAnswers() / mcqScore.totalQuestions() * evaluation.maxPoints());
+                String detailedMCQFeedback = mcqScore.getDetailedFeedback();
+                
+                System.out.println("🔄 Creating MCQ evaluation with detailed feedback:");
+                System.out.println("   Score: " + actualMCQScore + "/" + evaluation.maxPoints());
+                System.out.println("   Detailed feedback length: " + detailedMCQFeedback.length() + " chars");
                 
                 evaluation = new GradingEvaluation(
                     evaluation.category(),
                     actualMCQScore,
                     evaluation.maxPoints(),
-                    mcqScore.getDetailedFeedback(),
-                    evaluation.scoreBand()
+                    detailedMCQFeedback,  // This should be the main feedback with "marked incorrectly" messages
+                    evaluation.scoreBand(),
+                    evaluation.detailedFeedback()
                 );
             }
             
-            // Send result back to replyTo (router/coordinator)
+            // TELL PATTERN: Send result back to coordinator (fire-and-forget)
             if (msg.getReplyTo() != null) {
-                msg.getReplyTo().tell(new GraddieMessages.CategoryGraded(evaluation));
+                logger.debug("📤 TELL pattern: Sending evaluation result back to coordinator");
+                GraddieMessages.CategoryGraded result = new GraddieMessages.CategoryGraded(evaluation);
+                msg.getReplyTo().tell(result);
             }
             
         } catch (Exception e) {
@@ -111,9 +140,92 @@ public class GradingWorkerActor extends AbstractBehavior<GraddieMessages.Message
             System.err.println("❌ LLM evaluation failed for category " + msg.getCategory() + ": " + e.getMessage());
             
             if (msg.getReplyTo() != null) {
-                msg.getReplyTo().tell(new GraddieMessages.CategoryGradingFailed(msg.getCategory(), e.getMessage()));
+                logger.debug("📤 TELL pattern: Sending error result back to coordinator");
+                GraddieMessages.CategoryGradingFailed failure = new GraddieMessages.CategoryGradingFailed(msg.getCategory(), e.getMessage());
+                msg.getReplyTo().tell(failure);
             }
+        } finally {
+            // Decrease load counter
+            currentLoad = Math.max(0, currentLoad - 1);
+            logger.debug("✅ Worker {} completed grading task, current load: {}/{}", workerId, currentLoad, maxCapacity);
         }
+        
+        return this;
+    }
+    
+    /**
+     * ASK PATTERN RESPONSE: Handle health check requests
+     */
+    private Behavior<GraddieMessages.Message> onHealthCheck(GraddieMessages.WorkerHealthCheck msg) {
+        long startTime = System.currentTimeMillis();
+        lastHealthCheck = startTime;
+        
+        // Determine if worker is healthy based on current state
+        boolean isHealthy = currentLoad < maxCapacity && 
+                           System.currentTimeMillis() - lastHealthCheck < 120000; // Recent health check
+        
+        long responseTime = System.currentTimeMillis() - startTime;
+        
+        // RESPOND TO ASK: Send health status back to requester
+        GraddieMessages.WorkerHealthStatus healthStatus = new GraddieMessages.WorkerHealthStatus(
+            msg.getRequestId(),
+            workerId,
+            isHealthy,
+            currentLoad,
+            responseTime
+        );
+        
+        msg.getReplyTo().tell(healthStatus);
+        
+        logger.debug("💓 Health check from {}: healthy={}, load={}/{}", 
+            msg.getReplyTo().path(), isHealthy, currentLoad, maxCapacity);
+        
+        return this;
+    }
+    
+    /**
+     * ASK PATTERN RESPONSE: Handle capacity check requests
+     */
+    private Behavior<GraddieMessages.Message> onCapacityCheck(GraddieMessages.GradingCapacityCheck msg) {
+        int availableCapacity = Math.max(0, maxCapacity - currentLoad);
+        int queuedJobs = 0; // This worker doesn't queue jobs, but could be extended
+        
+        GraddieMessages.GradingCapacityResponse capacityResponse = new GraddieMessages.GradingCapacityResponse(
+            availableCapacity > 0 ? 1 : 0, // Available workers (this worker)
+            maxCapacity,                    // Total capacity
+            queuedJobs                      // Queued jobs
+        );
+        
+        msg.getReplyTo().tell(capacityResponse);
+        
+        logger.debug("📊 Capacity check: available={}, total={}, queued={}", 
+            availableCapacity, maxCapacity, queuedJobs);
+        
+        return this;
+    }
+    
+    /**
+     * FORWARD PATTERN: Handle delegated grading tasks
+     */
+    private Behavior<GraddieMessages.Message> onDelegateGrading(GraddieMessages.DelegateGrading msg) {
+        logger.info("🔄 Received delegated grading task from {}: {}", 
+            msg.getOriginalRequester().path(), msg.getDelegationReason());
+        
+        // Process the delegated grading task
+        GraddieMessages.GradeCategory gradingTask = msg.getGradingTask();
+        
+        // Create a new GradeCategory message with the original requester as replyTo
+        GraddieMessages.GradeCategory forwardedTask = new GraddieMessages.GradeCategory(
+            gradingTask.getCategory(),
+            gradingTask.getSubmissionContent(),
+            gradingTask.getRubricItem(),
+            gradingTask.getQuestionType(),
+            gradingTask.getCorrectAnswers(),
+            msg.getOriginalRequester() // Forward responses to original requester
+        );
+        
+        // Process the task (this will trigger onGradeCategory)
+        getContext().getSelf().tell(forwardedTask);
         
         return this;
     }

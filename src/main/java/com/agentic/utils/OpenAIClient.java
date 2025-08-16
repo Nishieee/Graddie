@@ -137,15 +137,31 @@ public class OpenAIClient {
         prompt.append("INSTRUCTIONS:\n");
         
         if (questionType == com.agentic.actors.GraddieMessages.QuestionType.MCQ) {
-            prompt.append("STRICT MCQ EVALUATION RULES:\n");
-            prompt.append("1. ONLY count exact matches between student answers and correct answers\n");
-            prompt.append("2. A is NOT the same as B, C, or D - be EXACT\n");
-            prompt.append("3. Calculate score as: (correct_answers / total_questions) * max_points\n");
-            prompt.append("4. Do NOT give partial credit for MCQ - either correct (1) or wrong (0)\n");
-            prompt.append("5. Count EVERY question, do not skip any\n");
-            prompt.append("6. For each question, provide a brief explanation of why the correct answer is right\n");
-            prompt.append("7. For incorrect answers, explain why the student's choice was wrong\n");
-            prompt.append("8. Verify your counting twice before assigning the final score\n\n");
+            prompt.append("STRICT EVALUATION RULES:\n");
+            prompt.append("1. BLANK/EMPTY ANSWERS = 0 POINTS - No exceptions!\n");
+            prompt.append("2. If answer line exists but is empty (e.g., 'Answer: ' with nothing after), that's BLANK = 0 points\n");
+            prompt.append("3. Only award points for actual, substantive answers\n");
+            prompt.append("4. For MCQ: Look for 'Answer: X' where X is A, B, C, or D\n");
+            prompt.append("5. For Short Answer: Look for actual content after 'Answer:'\n");
+            prompt.append("6. Score = (correct_answers / total_questions) * max_points\n");
+            prompt.append("7. Be HARSH on incomplete or missing answers\n");
+            prompt.append("8. Missing answers should be explicitly called out as 'No answer provided'\n\n");
+            
+            prompt.append("EXAMPLE PARSING:\n");
+            prompt.append("If submission contains:\n");
+            prompt.append("'What is 5 + 3?\nA. 6\nB. 8\nC. 10\nAnswer: B'\n");
+            prompt.append("Then student chose B (NOT A, even though A. 6 appears in the question)\n\n");
+            
+            prompt.append("FEEDBACK REQUIREMENTS - Be VERY detailed and educational:\n");
+            prompt.append("- For CORRECT answers: Praise the student and explain WHY it's correct\n");
+            prompt.append("- For INCORRECT answers: Start with 'This question was marked incorrectly' then explain:\n");
+            prompt.append("  • What the student chose and what it represents\n");
+            prompt.append("  • What the correct answer is and what it represents\n");
+            prompt.append("  • Step-by-step explanation of how to solve it correctly\n");
+            prompt.append("  • Tips to avoid this mistake in the future\n");
+            prompt.append("- Use encouraging but educational language\n");
+            prompt.append("- Give concrete examples and step-by-step reasoning\n");
+            prompt.append("- Make each explanation 2-3 sentences minimum\n\n");
             
             prompt.append("Return your response in this JSON format:\n");
             prompt.append("{\n");
@@ -168,20 +184,19 @@ public class OpenAIClient {
             prompt.append("}\n\n");
             
         } else if (questionType == com.agentic.actors.GraddieMessages.QuestionType.SHORT_ANSWER) {
-            prompt.append("SHORT ANSWER EVALUATION RULES:\n");
-            prompt.append("1. IMPORTANT: Be generous with scoring - this is about understanding, not perfection\n");
-            prompt.append("2. SCORING GUIDE:\n");
-            prompt.append("   - 1.0 = Perfect, complete answer\n");
-            prompt.append("   - 0.8 = Very good, shows clear understanding\n");
-            prompt.append("   - 0.7 = Good understanding, minor details missing\n");
-            prompt.append("   - 0.6 = Shows understanding of main concept\n");
-            prompt.append("   - 0.4 = Partial understanding, some correct elements\n");
-            prompt.append("   - 0.2 = Minimal understanding shown\n");
-            prompt.append("   - 0.0 = Completely wrong or nonsensical\n");
-            prompt.append("3. If student shows ANY understanding of the concept, give AT LEAST 0.6\n");
-            prompt.append("4. Only use 0.0-0.3 for answers that are totally wrong or make no sense\n");
-            prompt.append("5. Focus on what the student got RIGHT, not what's missing\n");
-            prompt.append("6. Provide detailed per-question feedback showing right/wrong with explanations\n\n");
+            prompt.append("STRICT SHORT ANSWER EVALUATION RULES:\n");
+            prompt.append("1. BLANK/EMPTY ANSWERS = 0.0 POINTS - No exceptions!\n");
+            prompt.append("2. If 'Answer:' line is missing or contains only whitespace, that's 0.0\n");
+            prompt.append("3. STRICT SCORING GUIDE:\n");
+            prompt.append("   - 1.0 = Perfect, complete, correct answer\n");
+            prompt.append("   - 0.8 = Very good answer, mostly correct\n");
+            prompt.append("   - 0.6 = Good answer, shows understanding\n");
+            prompt.append("   - 0.4 = Partial answer, some understanding\n");
+            prompt.append("   - 0.2 = Minimal/incorrect answer\n");
+            prompt.append("   - 0.0 = BLANK, empty, or completely wrong\n");
+            prompt.append("4. Be HARSH on incomplete answers - missing answers get 0.0\n");
+            prompt.append("5. Only award points for actual, substantive content\n");
+            prompt.append("6. Count unanswered questions as failures in your scoring\n\n");
             
             prompt.append("Return your response in this JSON format:\n");
             prompt.append("{\n");
@@ -422,13 +437,39 @@ public class OpenAIClient {
                     prompt.append("  Feedback: ").append(eval.feedback()).append("\n\n");
                 }
                 
-                prompt.append("Please provide:\n");
-                prompt.append("1. A summary of the student's overall performance\n");
-                prompt.append("2. Key strengths demonstrated\n");
-                prompt.append("3. Specific areas for improvement\n");
-                prompt.append("4. Constructive suggestions for future work\n");
-                prompt.append("5. Overall assessment of the submission quality\n\n");
-                prompt.append("Provide thoughtful, encouraging, and constructive feedback:");
+                prompt.append("FEEDBACK REQUIREMENTS - Be VERY detailed and engaging:\n\n");
+                prompt.append("1. **OPENING ASSESSMENT** (2-3 sentences):\n");
+                prompt.append("   - Start with an encouraging opening that acknowledges the student's effort\n");
+                prompt.append("   - Give an honest but supportive overall impression\n\n");
+                
+                prompt.append("2. **DETAILED STRENGTHS** (3-4 bullet points):\n");
+                prompt.append("   - Identify specific things the student did well\n");
+                prompt.append("   - Explain WHY these are strengths\n");
+                prompt.append("   - Use specific examples from their submission\n");
+                prompt.append("   - Be encouraging and detailed\n\n");
+                
+                prompt.append("3. **AREAS FOR IMPROVEMENT** (3-4 bullet points):\n");
+                prompt.append("   - Point out specific issues but in a constructive way\n");
+                prompt.append("   - Explain the impact of these issues\n");
+                prompt.append("   - Give concrete examples from their work\n");
+                prompt.append("   - Frame as learning opportunities\n\n");
+                
+                prompt.append("4. **SPECIFIC RECOMMENDATIONS** (3-4 actionable items):\n");
+                prompt.append("   - Give precise, actionable advice\n");
+                prompt.append("   - Suggest specific study strategies or resources\n");
+                prompt.append("   - Explain how to practice and improve\n");
+                prompt.append("   - Be specific and practical\n\n");
+                
+                prompt.append("5. **ENCOURAGING CONCLUSION** (2-3 sentences):\n");
+                prompt.append("   - End on a positive, motivating note\n");
+                prompt.append("   - Highlight their potential for improvement\n");
+                prompt.append("   - Express confidence in their abilities\n\n");
+                
+                prompt.append("**TONE**: Professional but warm, detailed but accessible, honest but encouraging.\n");
+                prompt.append("**LENGTH**: Aim for 300-400 words of substantive, detailed feedback.\n");
+                prompt.append("**AVOID**: Generic comments, vague praise, harsh criticism.\n\n");
+                
+                prompt.append("Generate comprehensive, detailed, and engaging feedback:");
                 
                 String response = makeOpenAIRequest(prompt.toString());
                 return response.trim();
@@ -519,7 +560,10 @@ public class OpenAIClient {
                 String correctAnswer = entry.getValue();
                 String studentAnswer = studentAnswers.get(question);
                 
-                if (studentAnswer != null && studentAnswer.equalsIgnoreCase(correctAnswer)) {
+                // Check if student provided an answer
+                if (studentAnswer == null || studentAnswer.trim().isEmpty()) {
+                    questionResults.put(question, "INCORRECT (Expected: " + correctAnswer + ", Got: NO ANSWER PROVIDED)");
+                } else if (studentAnswer.equalsIgnoreCase(correctAnswer)) {
                     correctCount++;
                     questionResults.put(question, "CORRECT");
                 } else {
@@ -559,11 +603,19 @@ public class OpenAIClient {
                 pendingQuestionKey = line;
                 inQuestion = true;
             }
-            // Check if this is an answer line (case insensitive)
+            // Check if this is an answer line (case insensitive) - must have content after ":"
             else if (line.matches("(?i)Answer: [A-D]")) {
                 if (pendingQuestionKey != null) {
                     String answer = line.substring(line.indexOf(":") + 1).trim().toUpperCase();
                     answers.put(pendingQuestionKey, answer);
+                    pendingQuestionKey = null;
+                    inQuestion = false;
+                }
+            }
+            // Check for empty answer lines (Answer: with nothing after)
+            else if (line.matches("(?i)Answer:\\s*$")) {
+                if (pendingQuestionKey != null) {
+                    answers.put(pendingQuestionKey, ""); // Explicitly mark as empty
                     pendingQuestionKey = null;
                     inQuestion = false;
                 }
@@ -620,12 +672,13 @@ public class OpenAIClient {
                 feedback.append(question).append("\n");
                 
                 if (isCorrect) {
-                    feedback.append("✅ CORRECT - Answer: ").append(correctAnswer).append("\n");
-                    feedback.append("💡 Explanation: ").append(getExplanationForQuestion(question, correctAnswer, true)).append("\n\n");
+                    feedback.append("✅ CORRECT - Your answer: ").append(studentAnswer).append("\n");
+                    feedback.append("💡 Great work! ").append(getExplanationForQuestion(question, correctAnswer, true)).append("\n\n");
                 } else {
-                    feedback.append("❌ INCORRECT - Your answer: ").append(studentAnswer)
-                           .append(", Correct answer: ").append(correctAnswer).append("\n");
-                    feedback.append("💡 Explanation: ").append(getExplanationForQuestion(question, correctAnswer, false)).append("\n\n");
+                    feedback.append("❌ INCORRECT - This question was marked incorrectly.\n");
+                    feedback.append("   Your answer: ").append(studentAnswer)
+                           .append(" | Correct answer: ").append(correctAnswer).append("\n");
+                    feedback.append("💡 How to solve this correctly: ").append(getExplanationForQuestion(question, correctAnswer, false)).append("\n\n");
                 }
                 questionNum++;
             }
@@ -634,21 +687,85 @@ public class OpenAIClient {
         }
         
         private String getExplanationForQuestion(String question, String correctAnswer, boolean wasCorrect) {
-            // Generate basic explanations based on common Akka concepts
-            if (question.toLowerCase().contains("tell")) {
-                return "'tell' is a fire-and-forget message pattern that sends a message without waiting for a response.";
+            // Generate detailed, educational explanations based on the question content
+            if (question.toLowerCase().contains("synonym") || question.toLowerCase().contains("happy")) {
+                if (wasCorrect) {
+                    return "Excellent! You provided a correct synonym for 'happy'. Synonyms are words with similar meanings, and there are many good options like joyful, glad, cheerful, pleased, or delighted.";
+                } else {
+                    return "No answer provided for this question. A synonym is a word with a similar meaning. For 'happy', you could use: joyful, glad, cheerful, pleased, content, delighted, or elated. Always provide an answer even if you're unsure!";
+                }
+            } else if (question.toLowerCase().contains("opposite") || question.toLowerCase().contains("hot")) {
+                if (wasCorrect) {
+                    return "Perfect! 'Cold' is indeed the opposite of 'hot'. You correctly identified this antonym - words that have opposite meanings.";
+                } else {
+                    return "The opposite of 'hot' is 'cold'. Opposites (antonyms) are words with contrasting meanings. Hot refers to high temperature, while cold refers to low temperature.";
+                }
+            } else if (question.toLowerCase().contains("complete") || question.toLowerCase().contains("morning") || question.toLowerCase().contains("eat")) {
+                if (wasCorrect) {
+                    return "Great job completing the sentence! Your answer makes sense for a breakfast context and shows good understanding of meal timing.";
+                } else {
+                    return "No answer provided for this sentence completion. Common breakfast foods include: eggs, cereal, toast, fruit, pancakes, oatmeal, or yogurt. Think about what people typically eat in the morning!";
+                }
+            } else if (question.toLowerCase().contains("5 + 3") || question.toLowerCase().contains("addition")) {
+                if (wasCorrect) {
+                    return "Excellent! You correctly solved 5 + 3 = 8. Addition combines two quantities - when you start with 5 and add 3 more, you get 8 total. This demonstrates solid understanding of basic arithmetic operations.";
+                } else {
+                    return "Let's work through this step-by-step: 5 + 3 means we start with 5 and add 3 more. You can visualize this as 5 objects plus 3 more objects = 8 total objects. Or count upward from 5: 6, 7, 8. The correct answer is " + correctAnswer + " which represents 8.";
+                }
+            } else if (question.toLowerCase().contains("even") || question.toLowerCase().contains("number")) {
+                if (wasCorrect) {
+                    return "Perfect! You correctly identified the even number. Even numbers are integers that can be divided by 2 with no remainder (like 2, 4, 6, 8, 10...). The number 4 is even because 4 ÷ 2 = 2 exactly, with no remainder.";
+                } else {
+                    return "Let's clarify even vs. odd numbers: Even numbers are divisible by 2 with no remainder. You can test this by seeing if you can group the number into pairs with nothing left over. For example: 4 objects can make 2 pairs (even), but 5 objects would have 1 left over (odd). The correct answer is " + correctAnswer + " representing the even number.";
+                }
+            } else if (question.toLowerCase().contains("10 - 6") || question.toLowerCase().contains("subtraction")) {
+                if (wasCorrect) {
+                    return "Great work! You correctly calculated 10 - 6 = 4. Subtraction means 'taking away' - when you start with 10 items and remove 6, you're left with 4 items. This shows good grasp of subtraction concepts.";
+                } else {
+                    return "Let's solve 10 - 6 together: Start with 10 and subtract (take away) 6. You can count backwards from 10: 9, 8, 7, 6, 5, 4. Or think of it as having 10 fingers, putting down 6 fingers, and counting how many are still up (4). The correct answer is " + correctAnswer + " representing 4.";
+                }
+            } else if (question.toLowerCase().contains("tell")) {
+                if (wasCorrect) {
+                    return "Excellent understanding! The 'tell' pattern is indeed a fire-and-forget messaging approach. You send a message to an actor without expecting or waiting for a response. This is the most common and efficient pattern for one-way communication in actor systems.";
+                } else {
+                    return "The 'tell' pattern (!) is fire-and-forget messaging - you send a message to an actor without waiting for a response. It's asynchronous and non-blocking, making it ideal for commands and notifications where you don't need a reply. The correct answer is " + correctAnswer + ".";
+                }
             } else if (question.toLowerCase().contains("ask")) {
-                return "'ask' returns a Future object that will eventually contain the response from the target actor.";
+                if (wasCorrect) {
+                    return "Perfect! The 'ask' pattern does return a Future that will eventually contain the response. This pattern enables request-response communication with timeouts and error handling, essential for queries where you need data back from the actor.";
+                } else {
+                    return "The 'ask' pattern (?) returns a CompletableFuture/Future object that will eventually contain the response from the target actor. Unlike 'tell', this is request-response communication - you send a message and wait for a reply. This is crucial for queries and operations where you need data back. The correct answer is " + correctAnswer + ".";
+                }
             } else if (question.toLowerCase().contains("forward")) {
-                return "'forward' preserves the original sender when passing a message to another actor, maintaining the sender's identity.";
+                if (wasCorrect) {
+                    return "Excellent! Forward does preserve the original sender when passing messages to another actor. This maintains the sender's identity throughout the message chain, which is crucial for proper response routing in distributed systems.";
+                } else {
+                    return "The 'forward' pattern preserves the original sender's identity when passing a message to another actor. Instead of the forwarding actor becoming the new sender, the original sender is maintained. This is essential for delegation patterns where responses should go back to the original requester. The correct answer is " + correctAnswer + ".";
+                }
             } else if (question.toLowerCase().contains("cluster")) {
-                return "Akka Cluster provides location transparency and fault tolerance for distributed actor systems.";
+                if (wasCorrect) {
+                    return "Great understanding! Akka Cluster provides location transparency and fault tolerance, allowing actors to communicate across multiple JVMs and machines as if they were local, with automatic failure detection and recovery.";
+                } else {
+                    return "Akka Cluster enables distributed actor systems by providing location transparency (actors can communicate across machines as if local) and fault tolerance (automatic detection and handling of node failures). It manages cluster membership, routing, and failure detection automatically. The correct answer is " + correctAnswer + ".";
+                }
             } else if (question.toLowerCase().contains("supervisor")) {
-                return "Supervisor Strategy handles child actor failures and defines how to respond (restart, stop, escalate, resume).";
+                if (wasCorrect) {
+                    return "Perfect! Supervisor Strategy defines how parent actors handle child actor failures, with options like restart (recreate), stop (terminate), escalate (pass up), or resume (continue). This is fundamental to actor system resilience.";
+                } else {
+                    return "Supervisor Strategy defines how parent actors respond to child actor failures. The four main strategies are: Restart (recreate the child), Stop (terminate the child), Escalate (pass the failure up to the parent's supervisor), and Resume (continue as if nothing happened). This creates hierarchical fault tolerance. The correct answer is " + correctAnswer + ".";
+                }
             } else if (question.toLowerCase().contains("dispatcher")) {
-                return "Dispatchers control how messages are executed, managing thread pools for actor message processing.";
+                if (wasCorrect) {
+                    return "Excellent! Dispatchers manage thread pools and control how actor messages are executed. They determine which threads process messages, affecting performance and concurrency characteristics of your actor system.";
+                } else {
+                    return "Dispatchers control the execution environment for actors by managing thread pools and determining how messages are processed. Different dispatcher types (like default, pinned, or fork-join) offer different performance characteristics. They're crucial for optimizing actor system performance. The correct answer is " + correctAnswer + ".";
+                }
             } else {
-                return "Review the Akka documentation for this concept to understand the correct behavior.";
+                if (wasCorrect) {
+                    return "Correct! You demonstrated good understanding of this concept. Keep applying this analytical thinking to similar problems.";
+                } else {
+                    return "This concept requires careful consideration. Review the relevant materials, think through the logic step-by-step, and consider how the different options relate to the core principles. The correct answer is " + correctAnswer + ".";
+                }
             }
         }
     }
